@@ -25,7 +25,7 @@
 
 6. **Log in to the control plane node and check status**
    ```bash
-   vagrant ssh k3s-control
+   vagrant ssh k3s-master
    kubectl get nodes -o wide
    kubectl get pod -A -o wide
    ```
