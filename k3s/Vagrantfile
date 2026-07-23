@@ -1,0 +1,114 @@
+# ----------------------------------------------------
+# CONFIGURATION VARIABLES
+# ----------------------------------------------------
+OS_BOX         = "debian/bookworm64"
+OS_VER         = "12.20250126.1"                # Specific OS box version
+K3S_VERSION    = "v1.36.2+k3s1"                 # Specific K3s version
+SUBNET         = "10.0.1"                       # Base network subnet
+MASTER_OCTET   = "10"                           # Last octet for the master node
+MASTER_IP      = "#{SUBNET}.#{MASTER_OCTET}"    # Automatically builds "10.0.1.10"
+NODE_COUNT     = 2                              # Number of worker nodes
+
+# Automatically calculate base IP and octet for worker nodes
+ip_base      = "#{SUBNET}."
+master_octet = MASTER_OCTET.to_i
+
+Vagrant.configure("2") do |config|
+  config.vm.graceful_halt_timeout = 600
+  config.vm.box = OS_BOX
+  config.vm.box_version = OS_VER
+  config.vm.box_architecture = "amd64"
+  config.vm.boot_timeout = 600
+
+  # Common provisioning script executed on all nodes (prerequisites & swap off)
+  common_provision = <<-SHELL
+    export DEBIAN_FRONTEND=noninteractive
+    
+    echo "=== 1. Updating system and installing required tools ==="
+    apt-get update -y
+    apt-get install -y curl coreutils iptables apparmor
+
+    echo "=== 2. Disabling swap ==="
+    swapoff -a
+    sed -i '/ swap / s/^/#/' /etc/fstab
+  SHELL
+
+  # ----------------------------------------------------
+  # Master Node (Control Plane)
+  # ----------------------------------------------------
+  config.vm.define "k3s-master" do |master|
+    master.vm.hostname = "k3s-master"
+    master.vm.network "private_network", ip: MASTER_IP
+    master.vm.boot_timeout = 600
+    
+    master.vm.provider "virtualbox" do |v|
+      v.name = "k3s-master"
+      v.memory = 2560
+      v.cpus = 2
+    end
+
+    # Print assigned IP to console ONLY during 'vagrant up'
+    if ARGV.include?("up")
+      puts "[Vagrant] k3s-master assigned IP: #{MASTER_IP}"
+    end
+
+    master.vm.provision "shell", inline: common_provision
+    
+    master.vm.provision "shell", inline: <<-SHELL
+      echo "=== 3. Installing K3s Server (Master) ==="
+      # Install K3s and bind it to the private network IP, keeping token accessible
+      curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="#{K3S_VERSION}" sh -s - server \
+        --node-ip=#{MASTER_IP} \
+        --write-kubeconfig-mode=644
+
+      echo "=== 4. Exporting node token for workers ==="
+      sudo cat /var/lib/rancher/k3s/server/node-token > /vagrant/.node-token
+      chmod 644 /vagrant/.node-token
+
+      echo "=== 5. Configuring kubectl for vagrant user ==="
+      mkdir -p /home/vagrant/.kube
+      cp /etc/rancher/k3s/k3s.yaml /home/vagrant/.kube/config
+      chown -R vagrant:vagrant /home/vagrant/.kube
+    SHELL
+  end
+
+  # ----------------------------------------------------
+  # Worker Nodes (Dynamic Loop)
+  # ----------------------------------------------------
+  (1..NODE_COUNT).each do |i|
+    worker_name = "k3s-worker#{i}"
+    worker_ip   = "#{ip_base}#{master_octet + i}"
+
+    config.vm.define worker_name do |worker|
+      worker.vm.hostname = worker_name
+      worker.vm.network "private_network", ip: worker_ip
+      worker.vm.boot_timeout = 600
+      
+      worker.vm.provider "virtualbox" do |v|
+        v.name = worker_name
+        v.memory = 2048
+        v.cpus = 1
+      end
+
+      # Print assigned IP to console ONLY during 'vagrant up' for each worker
+      if ARGV.include?("up")
+        puts "[Vagrant] #{worker_name} assigned IP: #{worker_ip}"
+      end
+
+      worker.vm.provision "shell", inline: common_provision
+      
+      worker.vm.provision "shell", inline: <<-SHELL
+        echo "=== Waiting for K3s Master token ==="
+        while [ ! -f /vagrant/.node-token ]; do
+          sleep 2
+        done
+
+        K3S_TOKEN=$(cat /vagrant/.node-token)
+
+        echo "=== Installing K3s Agent and joining cluster ==="
+        curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="#{K3S_VERSION}" K3S_URL=https://#{MASTER_IP}:6443 K3S_TOKEN=$K3S_TOKEN sh -s - \
+          --node-ip=#{worker_ip}
+      SHELL
+    end
+  end
+end
