@@ -1,0 +1,156 @@
+# ----------------------------------------------------
+# CONFIGURATION VARIABLES
+# ----------------------------------------------------
+OS_BOX         = "debian/bookworm64"            # Base OS box for Vagrant
+OS_VER         = "12.20250126.1"                # Specific OS box version
+K8S_VERSION      = "v1.36"                      # Kubernetes version
+CALICO_VERSION   = "v3.32.1"                    # Calico network version
+SUBNET           = "10.0.0"                     # Base network subnet
+MASTER_OCTET     = "10"                         # Last octet for the master node
+MASTER_IP        = "#{SUBNET}.#{MASTER_OCTET}"  # Automatically builds "10.0.0.10"
+NODE_COUNT       = 2                            # Number of worker nodes
+POD_NETWORK_CIDR = "192.168.0.0/16"             # Internal Pod network CIDR for Kubernetes
+
+# Automatically calculate base IP and octet for worker nodes
+ip_base      = "#{SUBNET}."
+master_octet = MASTER_OCTET.to_i
+
+Vagrant.configure("2") do |config|
+  config.vm.graceful_halt_timeout = 600
+  config.vm.box = OS_BOX
+  config.vm.box_version = OS_VER
+  config.vm.box_architecture = "amd64"
+  config.vm.boot_timeout = 600
+
+  # Common provisioning script executed on all nodes (packages, containerd, kubeadm)
+  common_provision = <<-SHELL
+    export DEBIAN_FRONTEND=noninteractive
+    
+    echo "=== 1. Disabling swap ==="
+    swapoff -a
+    sed -i '/ swap / s/^/#/' /etc/fstab
+
+    echo "=== 2. Configuring kernel modules for containerd ==="
+    cat <<EOF | tee /etc/modules-load.d/k8s.conf
+overlay
+br_netfilter
+EOF
+
+    modprobe overlay
+    modprobe br_netfilter
+
+    cat <<EOF | tee /etc/sysctl.d/k8s.conf
+net.bridge.bridge-netfilter-call-iptables  = 1
+net.bridge.bridge-netfilter-call-ip6tables = 1
+net.netfilter.nf_conntrack_max             = 1000000
+net.ipv4.ip_forward                        = 1
+EOF
+    sysctl --system
+
+    echo "=== 3. Installing containerd (official Docker repo) ==="
+    apt-get update && apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release
+    
+    mkdir -p /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    
+    echo \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
+      $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+    apt-get update && apt-get install -y containerd.io
+    
+    mkdir -p /etc/containerd
+    containerd config default | tee /etc/containerd/config.toml
+    sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml
+    systemctl restart containerd
+    systemctl enable containerd
+
+    echo "=== 4. Installing kubeadm, kubelet, kubectl (#{K8S_VERSION}) ==="
+    mkdir -p /etc/apt/keyrings
+    curl -fsSL https://pkgs.k8s.io/core:/stable:/#{K8S_VERSION}/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+    echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/#{K8S_VERSION}/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list
+    apt-get update
+    apt-get install -y kubelet kubeadm kubectl
+    apt-mark hold kubelet kubeadm kubectl
+
+    # Force kubelet to use the private network IP instead of default NAT (10.0.2.15)
+    PRIVATE_IP=$(ip -4 addr show | grep "inet #{SUBNET}." | awk '{print $2}' | cut -d/ -f1)
+    echo "KUBELET_EXTRA_ARGS=--node-ip=$PRIVATE_IP" | tee /etc/default/kubelet
+    systemctl restart kubelet
+  SHELL
+
+  # ----------------------------------------------------
+  # Master Node (Control Plane)
+  # ----------------------------------------------------
+  config.vm.define "k8s-master" do |master|
+    master.vm.hostname = "k8s-master"
+    master.vm.network "private_network", ip: MASTER_IP
+    master.vm.boot_timeout = 600
+    
+    master.vm.provider "virtualbox" do |v|
+      v.name = "k8s-master"
+      v.memory = 2560
+      v.cpus = 2
+    end
+
+    # Print assigned IP to console ONLY during 'vagrant up'
+    if ARGV.include?("up")
+      puts "[Vagrant] k8s-master assigned IP: #{MASTER_IP}"
+    end
+
+    master.vm.provision "shell", inline: common_provision
+    
+    master.vm.provision "shell", inline: <<-SHELL
+      echo "=== 5. Initializing Kubernetes cluster on Master ==="
+      kubeadm init --pod-network-cidr=#{POD_NETWORK_CIDR} --apiserver-advertise-address=#{MASTER_IP}
+
+      echo "=== 6. Configuring kubectl for vagrant user ==="
+      mkdir -p /home/vagrant/.kube
+      cp -i /etc/kubernetes/admin.conf /home/vagrant/.kube/config
+      chown -R vagrant:vagrant /home/vagrant/.kube
+
+      echo "=== 7. Installing cluster networking (Calico #{CALICO_VERSION}) ==="
+      export KUBECONFIG=/etc/kubernetes/admin.conf
+      kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/#{CALICO_VERSION}/manifests/calico.yaml
+
+      echo "=== 8. Generating join command for workers ==="
+      kubeadm token create --print-join-command > /vagrant/join_command.sh
+      chmod +x /vagrant/join_command.sh
+    SHELL
+  end
+
+  # ----------------------------------------------------
+  # Worker Nodes (Dynamic Loop)
+  # ----------------------------------------------------
+  (1..NODE_COUNT).each do |i|
+    worker_name = "k8s-worker#{i}"
+    worker_ip   = "#{ip_base}#{master_octet + i}"
+
+    config.vm.define worker_name do |worker|
+      worker.vm.hostname = worker_name
+      worker.vm.network "private_network", ip: worker_ip
+      worker.vm.boot_timeout = 600
+      
+      worker.vm.provider "virtualbox" do |v|
+        v.name = worker_name
+        v.memory = 2048
+        v.cpus = 1
+      end
+
+      # Print assigned IP to console ONLY during 'vagrant up' for each worker
+      if ARGV.include?("up")
+        puts "[Vagrant] #{worker_name} assigned IP: #{worker_ip}"
+      end
+
+      worker.vm.provision "shell", inline: common_provision
+      
+      worker.vm.provision "shell", inline: <<-SHELL
+        echo "=== Joining #{worker_name} to the cluster ==="
+        while [ ! -f /vagrant/join_command.sh ]; do
+          sleep 2
+        done
+        bash /vagrant/join_command.sh
+      SHELL
+    end
+  end
+end
