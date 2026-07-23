@@ -1,4 +1,7 @@
-# kubernetes-vagrant-lab
-Setup kubernetes lab with vagrant and virtualbox:
-- k8s, debian, control node and 2 worker nodes
-- k3s, debian, control node and 2 worker nodes
+# Automated Kubernetes Cluster Deployment on Debian
+
+This project provides automated setup configurations for deploying a Kubernetes cluster on **Debian (Linux)** using **Vagrant** and **VirtualBox**, running on a **Windows 11** host. 
+
+The repository includes deployment scripts and documentation for two distinct Kubernetes variants:
+1. **K3s** – A lightweight, fully compliant, and resource-efficient distribution tailored for development and testing environments.
+2. **K8s (Standard)** – A traditional Kubernetes setup for closer production-like simulations.
