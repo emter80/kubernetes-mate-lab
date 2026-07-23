@@ -18,12 +18,12 @@
    vagrant up
    ```
 
-5. Check existing machines
+5. **Check existing machines
    ```bash
    vagrant status
    ```
 
-6. Log in to the control plane node and check status
+6. **Log in to the control plane node and check status
    ```bash
    vagrant ssh k3s-control
    kubectl get nodes -o wide
