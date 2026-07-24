@@ -59,6 +59,7 @@ Vagrant.configure("2") do |config|
       # Install K3s and bind it to the private network IP, keeping token accessible
       curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="#{K3S_VERSION}" sh -s - server \
         --node-ip=#{MASTER_IP} \
+        --flannel-iface=eth1 \
         --write-kubeconfig-mode=644
 
       echo "=== 4. Exporting node token for workers ==="
@@ -107,7 +108,8 @@ Vagrant.configure("2") do |config|
 
         echo "=== Installing K3s Agent and joining cluster ==="
         curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="#{K3S_VERSION}" K3S_URL=https://#{MASTER_IP}:6443 K3S_TOKEN=$K3S_TOKEN sh -s - \
-          --node-ip=#{worker_ip}
+          --node-ip=#{worker_ip} \
+          --flannel-iface=eth1
       SHELL
     end
   end
