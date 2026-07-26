@@ -5,12 +5,12 @@
 
 2. **Clone the repository**
    ```bash
-   git clone https://github.com/emter80/kubernetes-vagrant-lab.git
+   git clone https://github.com/emter80/kubernetes-mate-lab.git
    ```
 
 3. **Navigate to the directory**
    ```bash
-   cd ./kubernetes-vagrant-lab/k3s
+   cd ./kubernetes-mate-lab/vagrant/k3s
    ```
 
 4. **Run the installation**
