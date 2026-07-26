@@ -1,4 +1,4 @@
-# Automated Kubernetes Cluster Deployment on Debian
+# Automated Kubernetes Cluster Deployment with Vagrant and VitrualBox on Debian
 
 This project provides automated setup configurations for deploying a Kubernetes cluster on **Debian (Linux)** using **Vagrant** and **VirtualBox**, running on a **Windows 11** host. 
 
@@ -7,7 +7,7 @@ The repository includes deployment scripts and documentation for two distinct Ku
 2. **K8s (Standard)** – A traditional Kubernetes setup for closer production-like simulations.
 
 
-## Lab Setup / Hardware Environment
+## My Lab Setup / Hardware Environment
 
 The development and testing environment used to run this project:
 
