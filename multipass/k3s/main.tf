@@ -159,13 +159,3 @@ output "k3s_cluster_nodes" {
     { for i, ip in local.worker_ips : "worker-node${i + 1}" => ip }
   )
 }
-
-/*
-# 4. Create a convenient alias to run kubectl from your host
-# We use a wrapper script to handle argument passing correctly via alias
-resource "multipass_alias" "kubectl" {
-  name     = "k3s-kubectl"
-  instance = multipass_instance.k3s-master.name
-  command  = "/usr/local/bin/k3s-kubectl-wrapper"
-}
-*/
