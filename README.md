@@ -16,7 +16,7 @@ This repository is organized into distinct directories based on the virtualizati
 > - Contains configurations for setting up both **K3s** and **K8s** clusters using **Vagrant** and **VirtualBox**. 
 > - 3 nodes (control + 2 workers) cluster lab environment installed on Debian linux and managed via Vagrantfiles.
 
-### 2. `multipass/ #<TBD>` 
+### 2. `multipass/` 
 > - Contains configurations for setting up **K3s** and **K8s** clusters using Canonical's **Multipass** combined with **Terraform**.
 > - 3 nodes (control + 2 workers) cluster lab environment installed on Ubuntu VM linux and managed Terraform.
 
