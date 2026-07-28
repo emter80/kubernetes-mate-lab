@@ -29,7 +29,7 @@ Implemented capabilities:
 
 The repository contains two independent infrastructure provisioning approaches:
 
-### Multipass + Terraform
+### Multipass + Terraform + K3s
 
 Provides automated provisioning of multi-node Kubernetes environments using
 Canonical Multipass virtual machines and Terraform Infrastructure as Code.
@@ -38,7 +38,7 @@ Canonical Multipass virtual machines and Terraform Infrastructure as Code.
 - Ubuntu Linux virtual machines
 - Terraform-managed lifecycle
 
-### Vagrant + VirtualBox
+### Vagrant + VirtualBox + K3s and K8s
 
 Provides an alternative provisioning approach using Vagrant and VirtualBox.
 
