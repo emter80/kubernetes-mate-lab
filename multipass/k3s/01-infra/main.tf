@@ -8,6 +8,14 @@ terraform {
       source  = "hashicorp/random"
       version = "3.6.3"
     }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "3.2.0"
+    }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "2.38.0"
+    }
   }
 }
 
@@ -26,18 +34,18 @@ resource "random_password" "k3s_token" {
 }
 
 locals {
-  worker_count   = 2
-  image          = "resolute"
-  bridge_name    = "multipass" 
-  ip_prefix      = "10.20.0"
-  ip_suffix      = 10
-  master_ip      = "${local.ip_prefix}.${local.ip_suffix}"
- 
+  worker_count = 2
+  image        = "resolute"
+  bridge_name  = "multipass"
+  ip_prefix    = "10.20.0"
+  ip_suffix    = 10
+  master_ip    = "${local.ip_prefix}.${local.ip_suffix}"
+
   worker_ips = [
-    for i in range(local.worker_count) : 
+    for i in range(local.worker_count) :
     "${local.ip_prefix}.${local.ip_suffix + i + 1}"
   ]
-  
+
   # Generate a safe list of MAC addresses for all nodes (master + workers)
   all_macs = [
     for i in range(local.worker_count + 1) : format("52:54:00:%s:%s:%s",
@@ -56,7 +64,7 @@ locals {
   ]
 
   k3s_token = random_password.k3s_token.result
-  
+
   master_cloud_init = <<-EOT
     #cloud-config
     package_update: true
@@ -90,11 +98,11 @@ locals {
 
 #create control plane node
 resource "multipass_instance" "k3s-master" {
-  name   = "k3s-master"
-  cpus   = 2
-  memory = "2G"
-  disk   = "10G"
-  image  = "${local.image}"
+  name       = "k3s-master"
+  cpus       = 2
+  memory     = "2G"
+  disk       = "20G"
+  image      = local.image
   cloud_init = local.master_cloud_init
 
   networks {
@@ -109,8 +117,8 @@ resource "multipass_instance" "k3s-worker" {
   count  = local.worker_count
   name   = "k3s-worker${count.index + 1}"
   cpus   = 1
-  memory = "1G"
-  disk   = "5G"
+  memory = "1536M"
+  disk   = "20G"
   image  = local.image
 
   networks {
@@ -149,7 +157,7 @@ resource "multipass_instance" "k3s-worker" {
 
 output "all_static_ips" {
   description = "List of static IP addresses (master first, followed by workers)"
-  value = concat([local.master_ip], local.worker_ips)
+  value       = concat([local.master_ip], local.worker_ips)
 }
 
 output "k3s_cluster_nodes" {
