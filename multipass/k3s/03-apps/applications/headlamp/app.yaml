@@ -1,10 +1,9 @@
 name: headlamp
 namespace: headlamp
-helm:
-  repoURL: https://kubernetes-sigs.github.io/headlamp/
-  chart: headlamp
-  targetRevision: 0.43.0
-valuesFile: values.yaml
+repoURL: https://kubernetes-sigs.github.io/headlamp/
+chart: headlamp
+targetRevision: 0.43.0
+valuesFile: multipass/k3s/03-apps/applications/headlamp/values.yaml
 expose:
   enabled: true
   host: headlamp.multipass.k3s

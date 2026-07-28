@@ -7,10 +7,14 @@ resource "kubernetes_manifest" "platform_applicationset" {
       namespace = "argocd"
     }
     spec = {
+      goTemplate = true
+      goTemplateOptions = [
+        "missingkey=error"
+      ]
       generators = [
         {
           git = {
-            repoURL  = "https://github.com/emter80/kubernetes-mate-lab.git"
+            repoURL = "https://github.com/emter80/kubernetes-mate-lab.git"
             revision = "main"
             files = [
               {
@@ -20,42 +24,38 @@ resource "kubernetes_manifest" "platform_applicationset" {
           }
         }
       ]
-
       template = {
         metadata = {
-          name = "{{name}}"
+          name = "{{.name}}"
         }
-
         spec = {
           project = "default"
           sources = [
             {
-              repoURL        = "{{helm.repoURL}}"
-              chart          = "{{helm.chart}}"
-              targetRevision = "{{helm.targetRevision}}"
+              repoURL = "{{.repoURL}}"
+              chart = "{{.chart}}"
+              targetRevision = "{{.targetRevision}}"
               helm = {
                 valueFiles = [
-                  "$values/{{values.file}}"
+                  "$values/{{.valuesFile}}"
                 ]
               }
             },
             {
-              repoURL        = "https://github.com/emter80/kubernetes-mate-lab.git"
+              repoURL = "https://github.com/emter80/kubernetes-mate-lab.git"
               targetRevision = "main"
-              ref            = "values"
+              ref = "values"
             }
           ]
           destination = {
-            server    = "https://kubernetes.default.svc"
-            namespace = "{{namespace}}"
+            server = "https://kubernetes.default.svc"
+            namespace = "{{.namespace}}"
           }
-
           syncPolicy = {
             automated = {
-              prune    = true
+              prune = true
               selfHeal = true
             }
-
             syncOptions = [
               "CreateNamespace=true"
             ]
