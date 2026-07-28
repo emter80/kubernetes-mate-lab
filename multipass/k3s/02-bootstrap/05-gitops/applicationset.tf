@@ -35,7 +35,7 @@ resource "kubernetes_manifest" "platform_applicationset" {
               targetRevision = "{{helm.targetRevision}}"
               helm = {
                 valueFiles = [
-                  "$values/{{path.dirname}}/{{valuesFile}}"
+                  "$values/{{values.file}}"
                 ]
               }
             },
