@@ -1,24 +1,50 @@
 # Automated Kubernetes Cluster Deployment on Linux
 
-This project provides automated setup configurations for deploying a Kubernetes cluster (K3s and K8s) on Linux guest (Windows 11 host).
+This project provides automated Infrastructure as Code configurations for provisioning
+Kubernetes clusters and deploying a GitOps-based cloud-native platform environment on Linux
+virtual machines running on a Windows 11 host.
 
-> - **K3s** – A lightweight, fully compliant, and resource-efficient distribution tailored for development and testing environments.
-> 
-> - **K8s** – A traditional Kubernetes setup for closer production-like simulations.
+---
+
+## Platform Capabilities
+
+Beyond cluster provisioning, this project implements a complete Kubernetes platform workflow
+covering application delivery, networking, and certificate management.
+
+Implemented capabilities:
+
+- **GitOps-based application delivery** using ArgoCD and ApplicationSets.
+- **Helm-based application lifecycle management** with declarative configuration.
+- **Multi-source ArgoCD Applications** separating Helm charts and environment configuration.
+- **Kubernetes ingress management** using Traefik for application exposure.
+- **Automated TLS certificate management** using cert-manager.
+- **Internal Certificate Authority (CA)** for issuing and managing cluster certificates.
+- **Declarative Kubernetes application deployment** through Git-based workflows.
+- **Infrastructure as Code (IaC)** approach for repeatable cluster creation and configuration.
+- **Cluster lifecycle automation** including provisioning, bootstrap, and application deployment.
 
 ---
 
 ## Repository Structure
 
-This repository is organized into distinct directories based on the virtualization and automation tooling used:
+The repository contains two independent infrastructure provisioning approaches:
 
-### 1. `vagrant/`
-> - Contains configurations for setting up both **K3s** and **K8s** clusters using **Vagrant** and **VirtualBox**. 
-> - 3 nodes (control + 2 workers) cluster lab environment installed on Debian linux and managed via Vagrantfiles.
+### Multipass + Terraform
 
-### 2. `multipass/` 
-> - Contains configurations for setting up **K3s** and **K8s** clusters using Canonical's **Multipass** combined with **Terraform**.
-> - 3 nodes (control + 2 workers) cluster lab environment installed on Ubuntu VM linux and managed Terraform.
+Provides automated provisioning of multi-node Kubernetes environments using
+Canonical Multipass virtual machines and Terraform Infrastructure as Code.
+
+- 3-node cluster topology (1 control plane + 2 workers)
+- Ubuntu Linux virtual machines
+- Terraform-managed lifecycle
+
+### Vagrant + VirtualBox
+
+Provides an alternative provisioning approach using Vagrant and VirtualBox.
+
+- 3-node cluster topology (1 control plane + 2 workers)
+- Debian Linux virtual machines
+- Vagrant-managed lifecycle
 
 ---
 
