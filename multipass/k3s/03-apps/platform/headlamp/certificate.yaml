@@ -6,7 +6,7 @@ metadata:
 spec:
   secretName: headlamp-tls
   issuerRef:
-    name: multipass-root-ca
+    name: multipass-ca
     kind: ClusterIssuer
   commonName: headlamp.multipass.k3s
   dnsNames:
