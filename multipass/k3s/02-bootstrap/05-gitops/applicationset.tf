@@ -12,7 +12,7 @@ resource "kubernetes_manifest" "platform_applicationset" {
       goTemplate = true
 
       goTemplateOptions = [
-        "missingkey=error"
+        "missingkey=default"
       ]
 
       generators = [
@@ -42,7 +42,7 @@ resource "kubernetes_manifest" "platform_applicationset" {
           project = "default"
 
           destination = {
-            server = "https://kubernetes.default.svc"
+            server    = "https://kubernetes.default.svc"
             namespace = "{{.namespace}}"
           }
 
@@ -79,7 +79,7 @@ resource "kubernetes_manifest" "platform_applicationset" {
 
           - repoURL: {{.repoURL}}
             targetRevision: {{.targetRevision}}
-            path: {{.path}}
+            path: {{.kustomizePath}}
 
           {{- end }}
       EOT
