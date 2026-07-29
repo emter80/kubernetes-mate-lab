@@ -7,12 +7,14 @@ metadata:
 
 spec:
   entryPoints:
-    - web
+    - websecure
 
   routes:
     - match: Host(`whoami.multipass.k3s`)
       kind: Rule
-
       services:
         - name: whoami
           port: 80
+
+  tls:
+    secretName: whoami-tls
