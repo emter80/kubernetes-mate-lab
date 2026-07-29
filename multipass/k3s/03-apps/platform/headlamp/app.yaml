@@ -2,5 +2,5 @@ name: headlamp-platform
 namespace: headlamp
 
 repoURL: https://github.com/emter80/kubernetes-mate-lab.git
-path: multipass/k3s/03-apps/platform/headlamp
+kustomizePath: multipass/k3s/03-apps/platform/headlamp
 targetRevision: main
