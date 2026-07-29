@@ -1,8 +1,0 @@
-service:
-  type: ClusterIP
-
-ingress:
-  enabled: false
-
-config:
-  inCluster: true

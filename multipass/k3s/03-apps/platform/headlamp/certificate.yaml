@@ -1,0 +1,13 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: headlamp-tls
+  namespace: headlamp
+spec:
+  secretName: headlamp-tls
+  issuerRef:
+    name: multipass-root-ca
+    kind: ClusterIssuer
+  commonName: headlamp.multipass.k3s
+  dnsNames:
+    - headlamp.multipass.k3s
