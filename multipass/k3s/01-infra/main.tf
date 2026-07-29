@@ -100,7 +100,7 @@ locals {
 resource "multipass_instance" "k3s-master" {
   name       = "k3s-master"
   cpus       = 2
-  memory     = "2560M"
+  memory     = "3G"
   disk       = "20G"
   image      = local.image
   cloud_init = local.master_cloud_init
@@ -117,7 +117,7 @@ resource "multipass_instance" "k3s-worker" {
   count  = local.worker_count
   name   = "k3s-worker${count.index + 1}"
   cpus   = 1
-  memory = "1536M"
+  memory = "1280M"
   disk   = "20G"
   image  = local.image
 
