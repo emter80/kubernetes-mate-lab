@@ -117,7 +117,7 @@ resource "multipass_instance" "k3s-worker" {
   count  = local.worker_count
   name   = "k3s-worker${count.index + 1}"
   cpus   = 1
-  memory = "1280M"
+  memory = "1140M"
   disk   = "20G"
   image  = local.image
 

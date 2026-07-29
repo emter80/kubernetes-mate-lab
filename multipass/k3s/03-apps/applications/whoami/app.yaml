@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+
+metadata:
+  name: whoami
+  namespace: argocd
+
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/emter80/kubernetes-mate-lab.git
+    targetRevision: main
+    path: multipass/k3s/03-apps/platform/whoami
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: whoami
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+    syncOptions:
+      - CreateNamespace=true
