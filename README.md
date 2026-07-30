@@ -73,3 +73,11 @@ The development and testing environment used to run this project:
 * **Hardware Model:** Intel NUC (NUC10i5FNK)
 * **Processor (CPU):** Intel Core i5-10210U @ 1.60GHz (x64-based, 4 cores / 8 threads)
 * **Memory (RAM):** 16 GB Total Physical Memory
+
+---
+
+## Screenshots
+
+<img width="1484" height="613" alt="image" src="https://github.com/user-attachments/assets/8b57570c-6089-4a37-ad4f-9c2edc7a6b40" />
+
+
