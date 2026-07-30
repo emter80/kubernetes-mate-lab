@@ -16,10 +16,11 @@ The project focuses on:
 - Separation of infrastructure, platform services, and application workloads.
 - GitOps-based application delivery.
 - Declarative configuration management.
+- Argo CD identity and access management integration.
 - Automated networking and certificate management.
 - Repeatable environment creation and recovery.
 
-The implemented architecture follows patterns commonly used in modern cloud-native environments, where infrastructure, platform capabilities, and application delivery are managed as independent layers.
+The implemented architecture follows patterns commonly used in modern cloud-native environments, where infrastructure, platform capabilities, security components and application delivery are managed as independent layers.
 
 ---
 ## Platform Capabilities
@@ -30,6 +31,8 @@ covering application delivery, networking, and certificate management.
 Implemented capabilities:
 
 - **GitOps-based application delivery** using ArgoCD and ApplicationSets.
+- **GitHub OAuth2** authentication integration for Argo CD using Dex as an identity broker.
+- **Argo CD Role-Based Access Control (RBAC)** authorization based on GitHub identities.
 - **Helm-based application lifecycle management** with declarative configuration.
 - **Multi-source ArgoCD Applications** separating Helm charts and environment configuration.
 - **Kubernetes ingress management** using Traefik for application exposure.
@@ -53,7 +56,8 @@ Canonical Multipass virtual machines and Terraform Infrastructure as Code.
 - 3-node cluster topology (1 control plane + 2 workers)
 - Ubuntu Linux virtual machines
 - Terraform-managed lifecycle
-- GitOps features
+- GitHub OAuth2 authentication integration for Argo CD using Dex as an identity broker.
+- Argo CD Role-Based Access Control (RBAC) authorization based on GitHub identities.
 
 ### Vagrant + VirtualBox + K3s and K8s
 
@@ -78,9 +82,27 @@ The development and testing environment used to run this project:
 
 ## Screenshots
 
+**ArgoCD > Applications**
+
 <img width="1484" height="613" alt="image" src="https://github.com/user-attachments/assets/8b57570c-6089-4a37-ad4f-9c2edc7a6b40" />
 
+---
 
+**ArgoCD > SSO**
+
+Github setup
+<img width="1431" height="360" alt="image" src="https://github.com/user-attachments/assets/16c8545c-ebad-4598-9bec-586030e0d81d" />
+<img width="1349" height="986" alt="image" src="https://github.com/user-attachments/assets/f3970fc5-cfa6-4523-b66b-e6de643221ab" />
+
+SSO login to ArgoCD
+<img width="1598" height="343" alt="image" src="https://github.com/user-attachments/assets/7ed92d00-56a4-455b-a765-d29ab7901a7b" />
+
+SSODeployment logs
+<img width="1894" height="197" alt="image" src="https://github.com/user-attachments/assets/aa308fe9-4ab4-4a47-acb4-c6a6875a06fc" />
+
+---
+
+**Headlamp > Map**
 <img width="1759" height="975" alt="image" src="https://github.com/user-attachments/assets/ef5853a7-28cb-44f1-8b0a-a30d89284d1f" />
 
 
