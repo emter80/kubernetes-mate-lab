@@ -7,8 +7,3 @@ targetRevision: 0.43.0
 
 valuesFile: multipass/k3s/03-apps/applications/headlamp/values.yaml
 manifestsPath: multipass/k3s/03-apps/applications/headlamp/manifests
-
-expose:
-  enabled: true
-  host: headlamp.multipass.k3s
-  tls: true
