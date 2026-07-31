@@ -12,3 +12,17 @@ config:
 
     callbackURL: https://headlamp.multipass.k3s/oidc-callback
     useCookie: true
+
+env:
+  - name: SSL_CERT_FILE
+    value: /etc/ssl/certs/multipass-root-ca.crt
+
+volumes:
+  - name: multipass-root-ca
+    configMap:
+      name: multipass-root-ca
+
+volumeMounts:
+  - name: multipass-root-ca
+    mountPath: /etc/ssl/certs/multipass-root-ca.crt
+    subPath: ca.crt
