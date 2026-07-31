@@ -84,7 +84,11 @@ The development and testing environment used to run this project:
 
 **ArgoCD > Applications**
 
-<img width="1484" height="613" alt="image" src="https://github.com/user-attachments/assets/8b57570c-6089-4a37-ad4f-9c2edc7a6b40" />
+<img width="1074" height="614" alt="image" src="https://github.com/user-attachments/assets/69294493-735c-4dc0-ae23-0e41bdead593" />
+
+<img width="1716" height="830" alt="image" src="https://github.com/user-attachments/assets/d9432201-3fe9-42c5-a4d5-08cc5d3724d6" />
+
+<img width="1728" height="650" alt="image" src="https://github.com/user-attachments/assets/2d854861-acf7-4e0d-8d46-964a91bbb1dc" />
 
 ---
 
