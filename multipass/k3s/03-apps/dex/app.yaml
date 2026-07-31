@@ -1,0 +1,7 @@
+name: dex
+namespace: dex
+repoURL: https://charts.dexidp.io
+chart: dex
+targetRevision: 0.24.1
+valuesFile: multipass/k3s/03-apps/dex/values.yaml
+kustomizePath: multipass/k3s/03-apps/dex

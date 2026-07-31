@@ -1,0 +1,20 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+
+metadata:
+  name: dex
+  namespace: dex
+
+spec:
+  entryPoints:
+    - websecure
+
+  routes:
+    - match: Host(`dex.multipass.k3s`)
+      kind: Rule
+      services:
+        - name: dex
+          port: 5556
+
+  tls:
+    secretName: dex-tls

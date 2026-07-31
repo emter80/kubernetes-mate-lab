@@ -1,0 +1,18 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+
+metadata:
+  name: dex-tls
+  namespace: dex
+
+spec:
+  secretName: dex-tls
+
+  issuerRef:
+    name: multipass-ca
+    kind: ClusterIssuer
+
+  commonName: dex.multipass.k3s
+
+  dnsNames:
+    - dex.multipass.k3s
