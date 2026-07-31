@@ -1,5 +1,5 @@
 name: whoami
+namespace: whoami
 repoURL: https://github.com/emter80/kubernetes-mate-lab.git
 targetRevision: main
-namespace: whoami
-kustomizePath: multipass/k3s/03-apps/platform/whoami
+kustomizePath: multipass/k3s/03-apps/whoami

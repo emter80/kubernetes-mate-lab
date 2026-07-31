@@ -23,7 +23,10 @@ resource "kubernetes_manifest" "platform_applicationset" {
 
             files = [
               {
-                path = "multipass/k3s/03-apps/**/app.yaml"
+                path = "multipass/k3s/03-apps/applications/**/app.yaml"
+              },
+              {
+                path = "multipass/k3s/03-apps/platform/**/app.yaml"
               }
             ]
           }
@@ -57,27 +60,28 @@ resource "kubernetes_manifest" "platform_applicationset" {
       }
 
       templatePatch = <<-EOT
-spec:
-  sources:
+        spec:
+          sources:
+          {{- if .chart }}
 
-  {{- if .chart }}
-  - repoURL: {{ .repoURL }}
-    chart: {{ .chart }}
-    targetRevision: {{ .targetRevision }}
-    helm:
-      valueFiles:
-        - $values/{{ .valuesFile }}
+          - repoURL: {{.repoURL}}
+            chart: {{.chart}}
+            targetRevision: {{.targetRevision}}
+            helm:
+              valueFiles:
+                - $values/{{.valuesFile}}
 
-  - repoURL: https://github.com/emter80/kubernetes-mate-lab.git
-    targetRevision: main
-    ref: values
-  {{- end }}
+          - repoURL: https://github.com/emter80/kubernetes-mate-lab.git
+            targetRevision: main
+            ref: values
 
-  {{- if .kustomizePath }}
-  - repoURL: https://github.com/emter80/kubernetes-mate-lab.git
-    targetRevision: main
-    path: {{ .kustomizePath }}
-  {{- end }}
+          {{- else }}
+
+          - repoURL: {{.repoURL}}
+            targetRevision: {{.targetRevision}}
+            path: {{.kustomizePath}}
+
+          {{- end }}
       EOT
     }
   }
