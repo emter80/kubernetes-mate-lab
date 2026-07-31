@@ -3,3 +3,12 @@ service:
 
 config:
   inCluster: true
+
+  oidc:
+    externalSecret:
+      enabled: true
+      name: headlamp-oidc
+      hasScopes: true
+
+    callbackURL: https://headlamp.multipass.k3s/oidc-callback
+    useCookie: true
