@@ -5,3 +5,4 @@ resources:
   - certificate.yaml
   - ingressroute.yaml
   - sealed-secret.yaml
+  - dex-ca.yaml
