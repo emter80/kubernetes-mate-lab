@@ -1,25 +1,6 @@
-config:
-  issuer: https://dex.multipass.k3s
-
-  storage:
-    type: kubernetes
-    config:
-      inCluster: true
-
-  web:
-    http: 0.0.0.0:5556
-
-  oauth2:
-    skipApprovalScreen: true
-
-  connectors:
-    - type: github
-      id: github
-      name: GitHub
-      config:
-        clientID: $GITHUB_CLIENT_ID
-        clientSecret: $GITHUB_CLIENT_SECRET
-        redirectURI: https://dex.multipass.k3s/callback
+configSecret:
+  create: false
+  name: dex-config
 
 service:
   type: ClusterIP
