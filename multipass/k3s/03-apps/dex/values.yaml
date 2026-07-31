@@ -21,14 +21,8 @@ config:
         clientSecret: $GITHUB_CLIENT_SECRET
         redirectURI: https://dex.multipass.k3s/callback
 
-
 service:
   type: ClusterIP
-  ports:
-    - name: http
-      port: 5556
-      targetPort: 5556
-
 
 resources:
   requests:
