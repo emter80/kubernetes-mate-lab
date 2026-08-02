@@ -5,4 +5,4 @@ resources:
   - certificate.yaml
   - ingressroute.yaml
   - sealed-headlamp-secret.yaml
-  - dex-ca.yaml
+  - multipass-root-ca.yaml
