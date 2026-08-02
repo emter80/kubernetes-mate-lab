@@ -4,4 +4,4 @@ kind: Kustomization
 resources:
   - certificate.yaml
   - ingressroute.yaml
-  - sealed-secret.yaml
+  - sealed-dex-secret.yaml
