@@ -1,9 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: multipass-root-ca
-  namespace: headlamp
-  annotations:
-    cert-manager.io/inject-ca-from: cert-manager/multipass-root-ca
-    cert-manager.io/allow-direct-injection: "true"
-data: {}

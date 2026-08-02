@@ -18,11 +18,11 @@ env:
     value: /etc/ssl/certs/multipass-root-ca.crt
 
 volumes:
-  - name: dex-ca
+  - name: multipass-root-ca
     configMap:
-      name: dex-ca
+      name: multipass-root-ca
 
 volumeMounts:
-  - name: dex-ca
+  - name: multipass-root-ca
     mountPath: /etc/ssl/certs/multipass-root-ca.crt
     subPath: ca.crt
