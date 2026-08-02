@@ -5,6 +5,8 @@ resource "helm_release" "trust_manager" {
 
   repository = "https://charts.jetstack.io"
   chart      = "trust-manager"
+  version    = "v0.24.0"
+
 
   values = [
     file("${path.module}/values.yaml")
