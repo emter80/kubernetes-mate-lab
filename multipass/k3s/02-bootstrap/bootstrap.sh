@@ -3,7 +3,7 @@
 set -e
 
 DIRS=(
-  "00-coredns"
+  #"00-coredns"
   "01-cert-manager"
   "02-certificates"
   "03-argocd"
