@@ -23,15 +23,17 @@ The module uses the Terraform Helm provider configured to access the K3s cluster
 
 ## Installed Version
 
-Component - Version
-- cert-manager - v1.21.0
-- Helm Provider - 3.2.0
+| Component | Version |
+|-----------|---------|
+| cert-manager | v1.21.0 |
+| Helm Provider | 3.2.0 |
 
 ## Files
 
-File - Description
-- `providers.tf` - Configures the Helm provider and Kubernetes connection
-- `cert-manager.tf` - Installs cert-manager using the official Helm chart
+| File | Description |
+|------|-------------|
+| `providers.tf` | Configures the Helm provider and Kubernetes connection |
+| `cert-manager.tf` | Installs cert-manager using the official Helm chart |
 
 ## Usage
 
