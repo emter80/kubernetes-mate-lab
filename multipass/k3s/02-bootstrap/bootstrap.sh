@@ -11,6 +11,7 @@ DIRS=(
   "05-gitops"
   "06-secrets"
   "07-trust-manager"
+  "08-oidc"
 )
 
 for dir in "${DIRS[@]}"; do

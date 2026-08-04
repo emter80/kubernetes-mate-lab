@@ -1,0 +1,6 @@
+kube-apiserver-arg:
+  - "oidc-issuer-url=https://dex.multipass.k3s"
+  - "oidc-client-id=kubernetes"
+  - "oidc-username-claim=email"
+  - "oidc-groups-claim=groups"
+  - "oidc-ca-file=/etc/rancher/k3s/multipass-root-ca.crt"
