@@ -27,5 +27,5 @@ volumeMounts:
     mountPath: /etc/ssl/certs/multipass-root-ca.crt
     subPath: ca.crt
 
-podAnnotations:
-  reloader.stakater.com/auto: "true"
+annotations:
+  reloader.stakater.com/auto: "true"    
