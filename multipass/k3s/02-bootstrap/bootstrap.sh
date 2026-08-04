@@ -9,6 +9,8 @@ DIRS=(
   "03-argocd"
   "04-ingress"
   "05-gitops"
+  "06-secrets"
+  "07-trust-manager"
 )
 
 for dir in "${DIRS[@]}"; do

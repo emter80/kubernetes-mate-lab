@@ -7,7 +7,7 @@ spec:
   sources:
     - secret:
         name: multipass-root-ca
-        namespace: cert-manager
+        #namespace: cert-manager
         key: ca.crt
 
   target:

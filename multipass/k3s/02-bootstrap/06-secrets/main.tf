@@ -55,7 +55,9 @@ git add ../../03-apps/*/sealed-*-secret.yaml
 if git diff --cached --quiet; then
   echo "No changes to commit"
 else
-  git commit -m "Update sealed secrets"
+  CURRENT_DATE=$(date "+%Y-%m-%d %H:%M:%S")
+  git commit -m "Update sealed secrets - $CURRENT_DATE"
+  git push
 fi
 EOF
 
