@@ -13,5 +13,5 @@ resources:
     cpu: 200m
     memory: 256Mi
 
-annotations:
-  reloader.stakater.com/auto: "true"
+deploymentAnnotations:
+  reloader.stakater.com/auto: "true"    
