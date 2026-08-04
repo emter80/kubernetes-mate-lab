@@ -1,0 +1,9 @@
+name: reloader
+namespace: reloader
+
+repoURL: https://stakater.github.io/stakater-charts
+chart: reloader
+targetRevision: 2.2.12
+
+valuesFile: multipass/k3s/03-apps/reloader/values.yaml
+kustomizePath: multipass/k3s/03-apps/reloader
