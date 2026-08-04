@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rbac
+  namespace: argocd
+
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/emter80/kubernetes-mate-lab.git
+    targetRevision: main
+    path: multipass/k3s/03-apps/rbac
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
