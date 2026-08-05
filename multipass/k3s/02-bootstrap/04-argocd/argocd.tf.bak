@@ -1,0 +1,62 @@
+locals {
+  argocd_secret = "${path.module}/topsecret/plain-argocd-secret.yaml"
+}
+
+resource "terraform_data" "seal_argocd_secret" {
+
+  triggers_replace = [
+    filesha256(local.argocd_secret)
+  ]
+
+  provisioner "local-exec" {
+
+    interpreter = [
+      "C:/Program Files/Git/bin/bash.exe",
+      "-c"
+    ]
+
+    command = <<EOF
+kubeseal \
+--kubeconfig ~/.kube/config.multipass.k3s \
+--controller-name sealed-secrets-controller \
+--controller-namespace sealed-secrets \
+< ${local.argocd_secret} \
+> ${path.module}/sealed-argocd-secret.yaml
+EOF
+
+  }
+}
+
+resource "kubernetes_manifest" "argocd_secret" {
+
+  depends_on = [
+    terraform_data.seal_argocd_secret
+  ]
+
+  manifest = yamldecode(
+    file("${path.module}/sealed-argocd-secret.yaml")
+  )
+}
+
+resource "helm_release" "argocd" {
+  name = "argocd"
+  namespace = "argocd"
+  repository = "https://argoproj.github.io/argo-helm"
+  chart = "argo-cd"
+  version = "10.2.1"
+  create_namespace = true
+
+  values = [
+    yamlencode({
+      server = {
+        extraArgs = [
+          "--insecure"
+        ]
+      }
+    })
+  ]
+}
+
+depends_on = [
+  kubernetes_manifest.argocd_secret
+]

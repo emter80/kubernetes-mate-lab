@@ -1,0 +1,204 @@
+{
+  "version": 4,
+  "terraform_version": "1.15.8",
+  "serial": 29,
+  "lineage": "2b771dea-fe50-f1fd-0ce0-8067305f1fc9",
+  "outputs": {},
+  "resources": [
+    {
+      "mode": "managed",
+      "type": "helm_release",
+      "name": "argocd",
+      "provider": "provider[\"registry.terraform.io/hashicorp/helm\"]",
+      "instances": [
+        {
+          "schema_version": 2,
+          "attributes": {
+            "atomic": false,
+            "chart": "argo-cd",
+            "cleanup_on_fail": false,
+            "create_namespace": false,
+            "dependency_update": false,
+            "description": null,
+            "devel": null,
+            "disable_crd_hooks": false,
+            "disable_openapi_validation": false,
+            "disable_webhooks": false,
+            "force_update": false,
+            "id": "argocd",
+            "keyring": null,
+            "lint": false,
+            "manifest": null,
+            "max_history": 0,
+            "metadata": {
+              "app_version": "v3.4.5",
+              "chart": "argo-cd",
+              "first_deployed": 1785798170,
+              "last_deployed": 1785921626,
+              "name": "argocd",
+              "namespace": "argocd",
+              "notes": "\nIn order to access the server UI you have the following options:\n\n1. kubectl port-forward service/argocd-server -n argocd 8080:443\n\n    and then open the browser on http://localhost:8080 and accept the certificate\n\n2. enable ingress in the values file `server.ingress.enabled` and either\n      - Add the annotation for ssl passthrough: https://argo-cd.readthedocs.io/en/stable/operator-manual/ingress/#option-1-ssl-passthrough\n      - Set the `configs.params.\"server.insecure\"` in the values file and terminate SSL at your ingress: https://argo-cd.readthedocs.io/en/stable/operator-manual/ingress/#option-2-multiple-ingress-objects-and-hosts\n\n\nAfter reaching the UI the first time you can login with username: admin and the random password generated during the installation. You can find the password by running:\n\nkubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath=\"{.data.password}\" | base64 -d\n\n(You should delete the initial secret afterwards as suggested by the Getting Started Guide: https://argo-cd.readthedocs.io/en/stable/getting_started/#4-login-using-the-cli)\n",
+              "revision": 2,
+              "values": "{\"configs\":{\"cm\":{\"dex.config\":\"connectors:\\n- type: github\\n  id: github\\n  name: GitHub\\n  config:\\n    clientID: $dex.github.clientId\\n    clientSecret: $dex.github.clientSecret\\n\",\"url\":\"https://argocd.multipass.k3s\"},\"rbac\":{\"policy.csv\":\"g, emter80, role:admin\\n\",\"policy.default\":\"role:readonly\",\"scopes\":\"[groups,email]\"}},\"server\":{\"extraArgs\":[\"--insecure\"]}}",
+              "version": "10.2.1"
+            },
+            "name": "argocd",
+            "namespace": "argocd",
+            "pass_credentials": false,
+            "postrender": null,
+            "recreate_pods": false,
+            "render_subchart_notes": true,
+            "replace": false,
+            "repository": "https://argoproj.github.io/argo-helm",
+            "repository_ca_file": null,
+            "repository_cert_file": null,
+            "repository_key_file": null,
+            "repository_password": null,
+            "repository_username": null,
+            "reset_values": false,
+            "resources": null,
+            "reuse_values": false,
+            "set": null,
+            "set_list": null,
+            "set_sensitive": null,
+            "set_wo": null,
+            "set_wo_revision": null,
+            "skip_crds": false,
+            "status": "deployed",
+            "take_ownership": false,
+            "timeout": 300,
+            "timeouts": null,
+            "upgrade_install": false,
+            "values": [
+              "\"configs\":\n  \"cm\":\n    \"dex.config\": |\n      connectors:\n      - type: github\n        id: github\n        name: GitHub\n        config:\n          clientID: $dex.github.clientId\n          clientSecret: $dex.github.clientSecret\n    \"url\": \"https://argocd.multipass.k3s\"\n  \"rbac\":\n    \"policy.csv\": |\n      g, emter80, role:admin\n    \"policy.default\": \"role:readonly\"\n    \"scopes\": \"[groups,email]\"\n\"server\":\n  \"extraArgs\":\n  - \"--insecure\"\n"
+            ],
+            "verify": false,
+            "version": "10.2.1",
+            "wait": true,
+            "wait_for_jobs": false
+          },
+          "sensitive_attributes": [
+            [
+              {
+                "type": "get_attr",
+                "value": "repository_password"
+              }
+            ]
+          ],
+          "identity_schema_version": 0,
+          "identity": {
+            "namespace": "argocd",
+            "release_name": "argocd"
+          },
+          "dependencies": [
+            "kubernetes_namespace_v1.argocd",
+            "terraform_data.apply_argocd_secret",
+            "terraform_data.seal_argocd_secret"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "kubernetes_namespace_v1",
+      "name": "argocd",
+      "provider": "provider[\"registry.terraform.io/hashicorp/kubernetes\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "id": "argocd",
+            "metadata": [
+              {
+                "annotations": {},
+                "generate_name": "",
+                "generation": 0,
+                "labels": {},
+                "name": "argocd",
+                "resource_version": "180751",
+                "uid": "1fc288c5-1035-4842-9f09-496052abaadd"
+              }
+            ],
+            "timeouts": null,
+            "wait_for_default_service_account": false
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 1,
+          "identity": {
+            "api_version": "v1",
+            "kind": "Namespace",
+            "name": "argocd"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiZGVsZXRlIjozMDAwMDAwMDAwMDB9fQ=="
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "terraform_data",
+      "name": "apply_argocd_secret",
+      "provider": "provider[\"terraform.io/builtin/terraform\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "id": "d5ae10b5-5635-2363-19ae-233c3ff11d28",
+            "input": null,
+            "output": null,
+            "triggers_replace": {
+              "value": [
+                "bd5c31cc04c14afd053560a08450df3aa4573f2a435a0fc436747098ed4504d2"
+              ],
+              "type": [
+                "tuple",
+                [
+                  "string"
+                ]
+              ]
+            }
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "dependencies": [
+            "kubernetes_namespace_v1.argocd",
+            "terraform_data.seal_argocd_secret"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "terraform_data",
+      "name": "git_commit_argocd_secret",
+      "provider": "provider[\"terraform.io/builtin/terraform\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "id": "1980774d-0f8c-beb2-e4fd-a7e31a584290",
+            "input": null,
+            "output": null,
+            "triggers_replace": {
+              "value": [
+                "bd5c31cc04c14afd053560a08450df3aa4573f2a435a0fc436747098ed4504d2"
+              ],
+              "type": [
+                "tuple",
+                [
+                  "string"
+                ]
+              ]
+            }
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "dependencies": [
+            "kubernetes_namespace_v1.argocd",
+            "terraform_data.seal_argocd_secret"
+          ]
+        }
+      ]
+    }
+  ],
+  "check_results": null
+}
