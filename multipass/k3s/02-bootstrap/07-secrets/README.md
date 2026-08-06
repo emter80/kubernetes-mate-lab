@@ -1,4 +1,4 @@
-# 06 - Secrets
+# Secrets
 
 This module automates the management of Kubernetes secrets using **Bitnami Sealed Secrets**.
 
