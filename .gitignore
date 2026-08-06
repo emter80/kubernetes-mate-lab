@@ -1,4 +1,28 @@
-**/.node-token
-**/.vagrant/
-**/join_command.sh
-**/topsecret/
+# General
+.node-token
+.vagrant/
+join_command.sh
+topsecret/
+
+# Terraform
+.terraform/
+terraform.tfstate
+terraform.tfstate.backup
+
+# Generated certificates
+*.crt
+*.key
+*.pem
+
+# MkDocs
+site/
+
+# MkDocs generated site
+/site/
+
+# Python virtual environment
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
