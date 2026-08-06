@@ -1,4 +1,4 @@
-# 02 - Certificates
+# Certificates
 
 This module configures the certificate infrastructure for the K3s cluster using cert-manager.
 
