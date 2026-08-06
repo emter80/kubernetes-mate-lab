@@ -1,4 +1,4 @@
-# 04 - Ingress
+# Ingress
 
 This module exposes the Argo CD web interface through Traefik and secures it with a TLS certificate issued by the cluster's private Certificate Authority.
 
