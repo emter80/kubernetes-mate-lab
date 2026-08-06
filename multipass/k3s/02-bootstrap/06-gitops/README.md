@@ -1,4 +1,4 @@
-# 05 - GitOps
+# GitOps
 
 This module configures **Argo CD ApplicationSet** to automatically discover and deploy applications from the Git repository.
 
