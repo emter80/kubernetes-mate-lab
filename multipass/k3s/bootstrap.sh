@@ -1,22 +1,16 @@
 #!/bin/bash
-
 set -e
-
 ROOT_DIR="$(pwd)"
-
 INFRA_DIR="01-infra"
 BOOTSTRAP_DIR="02-bootstrap"
-
 RED_BG='\033[41m'
 WHITE='\033[97m'
 RESET='\033[0m'
-
 
 show_usage() {
     echo ""
     echo "Usage:"
     echo ""
-
     echo "./bootstrap.sh --apply"
     echo "  Normal bootstrap:"
     echo "  - Apply Terraform infrastructure (01-infra)"
@@ -46,66 +40,51 @@ show_usage() {
     echo ""
 }
 
-
 get_k3s_instances() {
-
     multipass list --format csv | \
         tail -n +2 | \
         cut -d',' -f1 | \
         grep '^k3s-' || true
 }
 
-
 delete_k3s_instances() {
-
     echo "================================="
     echo "Searching k3s Multipass instances"
     echo "================================="
 
-
     INSTANCES=$(get_k3s_instances)
-
 
     if [ -z "$INSTANCES" ]; then
         echo "No k3s instances found"
         return
     fi
 
-
     echo ""
     echo "Instances to delete:"
     echo ""
 
     echo "$INSTANCES" | sed 's/^/  - /'
-
     echo ""
 
     read -p "Delete these instances? Type YES: " CONFIRM
-
 
     if [ "$CONFIRM" != "YES" ]; then
         echo "Cancelled"
         exit 1
     fi
 
-
     echo ""
-
     while read -r vm; do
         echo "Deleting: $vm"
         multipass delete "$vm"
     done <<< "$INSTANCES"
 
-
     echo ""
-
     echo "Purging deleted instances"
 
     multipass purge
-
     echo "Multipass cleanup completed"
 }
-
 
 clean_terraform() {
 
@@ -113,17 +92,14 @@ clean_terraform() {
     echo "Terraform cleanup"
     echo "================================="
 
-
     echo ""
     echo "Files/directories to remove:"
     echo ""
-
 
     find "$ROOT_DIR" \
         -type d \
         -name ".terraform" \
         -print
-
 
     find "$ROOT_DIR" \
         -type f \
@@ -133,24 +109,20 @@ clean_terraform() {
         \) \
         -print
 
-
     echo ""
 
     read -p "Continue Terraform cleanup? Type YES: " CONFIRM
-
 
     if [ "$CONFIRM" != "YES" ]; then
         echo "Cancelled"
         exit 1
     fi
 
-
     find "$ROOT_DIR" \
         -type d \
         -name ".terraform" \
         -prune \
         -exec rm -rf {} \;
-
 
     find "$ROOT_DIR" \
         -type f \
@@ -160,23 +132,18 @@ clean_terraform() {
         \) \
         -delete
 
-
     echo "Terraform cleanup completed"
 }
-
 
 terraform_apply() {
 
     local DIR=$1
 
-
     echo "================================="
     echo "Terraform apply: $DIR"
     echo "================================="
 
-
     cd "$DIR"
-
 
     terraform init -upgrade
 
@@ -184,10 +151,8 @@ terraform_apply() {
 
     terraform apply -auto-approve
 
-
     cd "$ROOT_DIR"
 }
-
 
 bootstrap_cluster() {
 
@@ -195,23 +160,18 @@ bootstrap_cluster() {
     echo "Creating K3s infrastructure"
     echo "================================="
 
-
     terraform_apply "$INFRA_DIR"
-
 
     echo "================================="
     echo "Running Kubernetes bootstrap"
     echo "================================="
 
-
     cd "$BOOTSTRAP_DIR"
 
     ./bootstrap.sh
 
-
     cd "$ROOT_DIR"
 }
-
 
 rebuild_cluster() {
 
@@ -219,14 +179,12 @@ rebuild_cluster() {
     echo "FULL K3S CLUSTER REBUILD"
     echo "================================="
 
-
     echo ""
 
     echo "Current Multipass instances:"
     echo ""
 
     multipass list
-
 
     echo ""
 
@@ -254,15 +212,12 @@ rebuild_cluster() {
 
     echo ""
 
-
     read -p "Continue? Type YES: " CONFIRM
-
 
     if [ "$CONFIRM" != "YES" ]; then
         echo "Cancelled"
         exit 1
     fi
-
 
     delete_k3s_instances
 
@@ -270,7 +225,6 @@ rebuild_cluster() {
 
     bootstrap_cluster
 }
-
 
 case "$1" in
 
