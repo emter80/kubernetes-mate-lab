@@ -1,4 +1,4 @@
-# 03 - Argo CD
+# Argo CD
 
 This module installs **Argo CD** into the K3s cluster using the Terraform Helm provider.
 
