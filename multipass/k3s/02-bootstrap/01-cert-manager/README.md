@@ -1,4 +1,4 @@
-# 01 - cert-manager
+# cert-manager
 
 This module installs **cert-manager** into the K3s cluster using the Terraform Helm provider.
 
