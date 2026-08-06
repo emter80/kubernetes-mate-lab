@@ -1,4 +1,4 @@
-# 07 - trust-manager
+# trust-manager
 
 This module installs and configures **trust-manager** to distribute the internal Kubernetes Certificate Authority across the cluster.
 
