@@ -9,12 +9,31 @@ Before running this project, ensure you have the following software installed on
 
     [See details on how to setup Virtual Switch](https://dev.to/madalinignisca/how-to-permanent-private-ip-on-multipass-on-windows-with-hyper-v-14k6)
 
-## Trust the cluster Root CA
+## Install K3s Cluster
+### Task 1 - Build the cluster
+```bash
+cd <base_dir>
+git clone https://github.com/emter80/kubernetes-mate-lab.git
+cd kubernetes-mate-lab/multipass/k3s/
+./main_bootstrap.sh --build
+```
+
+### Task 2 - Trust the cluster Root CA
 
 After the cluster bootstrap completes, run this from Git Bash in `multipass/k3s`:
 
 ```bash
-bash ./install-root-ca.sh
+./install-root-ca.sh
 ```
 
 The script verifies the generated public CA certificate and, after you type `YES`, imports it into the current Windows user's `Root` certificate store. Windows may show an additional trust warning. No administrator privileges are required, and the CA private key is never imported.
+
+## Destroy K3s Cluster
+
+### Task 1 - Destroy the cluster
+```bash
+cd <base_dir>
+git clone https://github.com/emter80/kubernetes-mate-lab.git
+cd kubernetes-mate-lab/multipass/k3s/
+./main_bootstrap.sh --destroy
+```
