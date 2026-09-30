@@ -131,6 +131,7 @@ resource "multipass_instance" "k3s-worker" {
   cloud_init = <<-EOT
     #cloud-config
     package_update: true
+    package_upgrade: true
 
     write_files:
       - path: /etc/netplan/10-custom.yaml

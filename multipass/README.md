@@ -8,3 +8,13 @@ Before running this project, ensure you have the following software installed on
 * **Virtual Switch:** setup a Hyper-V Virtual Switch named "multipass" (required for static IP assignment and bridge networking)
 
     [See details on how to setup Virtual Switch](https://dev.to/madalinignisca/how-to-permanent-private-ip-on-multipass-on-windows-with-hyper-v-14k6)
+
+## Trust the cluster Root CA
+
+After the cluster bootstrap completes, run this from Git Bash in `multipass/k3s`:
+
+```bash
+bash ./install-root-ca.sh
+```
+
+The script verifies the generated public CA certificate and, after you type `YES`, imports it into the current Windows user's `Root` certificate store. Windows may show an additional trust warning. No administrator privileges are required, and the CA private key is never imported.
