@@ -11,9 +11,9 @@ Before running this project, ensure you have the following software installed on
 
 ## Install K3s Cluster
 ### Task 1 - Build the cluster
+Fork the repo: https://github.com/emter80/kubernetes-mate-lab.git
+and clone to <base_dir>
 ```bash
-cd <base_dir>
-git clone https://github.com/emter80/kubernetes-mate-lab.git
 cd kubernetes-mate-lab/multipass/k3s/
 ./main_bootstrap.sh --build
 ```
