@@ -14,6 +14,7 @@ Before running this project, ensure you have the following software installed on
 Fork the repo: https://github.com/emter80/kubernetes-mate-lab.git
 and clone to <base_dir>
 ```bash
+cd <base_dir>
 cd kubernetes-mate-lab/multipass/k3s/
 ./main_bootstrap.sh --build
 ```
@@ -23,6 +24,8 @@ cd kubernetes-mate-lab/multipass/k3s/
 After the cluster bootstrap completes, run this from Git Bash in `multipass/k3s`:
 
 ```bash
+cd <base_dir>
+cd kubernetes-mate-lab/multipass/k3s/
 ./install-root-ca.sh
 ```
 
@@ -33,7 +36,6 @@ The script verifies the generated public CA certificate and, after you type `YES
 ### Task 1 - Destroy the cluster
 ```bash
 cd <base_dir>
-git clone https://github.com/emter80/kubernetes-mate-lab.git
 cd kubernetes-mate-lab/multipass/k3s/
 ./main_bootstrap.sh --destroy
 ```
