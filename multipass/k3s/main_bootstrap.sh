@@ -137,7 +137,10 @@ check_consul() {
 
     if ! leader="$(curl --fail --silent --max-time 5 http://127.0.0.1:8500/v1/status/leader)"; then
         echo "Unable to reach Consul at http://127.0.0.1:8500. Is the Consul server running?" >&2
-        echo "Start Consul from Git Bash with:" >&2
+        echo ">>Start Consul container"
+        echo "  docker start consul"
+        echo ">>OR"
+        echo ">>Create Consul container from Git Bash with:" >&2
         echo "  docker rm -f consul 2>/dev/null || true" >&2
         echo "  MSYS_NO_PATHCONV=1 docker run -d --name consul \\" >&2
         echo "    -p 127.0.0.1:8500:8500 \\" >&2

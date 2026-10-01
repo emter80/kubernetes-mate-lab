@@ -5,9 +5,39 @@ Before running this project, ensure you have the following software installed on
 * **Multipass:** version  1.16.3 (or newer)
 * **Terraform:** version  1.15.8 (or newer)
 * **Shell environment:** sh executable, e.g., Install Git Bash on Windows – must be added to your system PATH
+* **Consul:** a local Consul server available at `http://127.0.0.1:8500`
+* **Docker Desktop:** required to run the local Consul container shown below
 * **Virtual Switch:** setup a Hyper-V Virtual Switch named "multipass" (required for static IP assignment and bridge networking)
 
     [See details on how to setup Virtual Switch](https://dev.to/madalinignisca/how-to-permanent-private-ip-on-multipass-on-windows-with-hyper-v-14k6)
+
+## Start Local Consul
+
+Start Consul before building or rebuilding the cluster. The Terraform backend stores state and locks in Consul; the local Docker volume preserves its data when the container is stopped or removed.
+
+From Git Bash, start a new Consul container:
+
+```bash
+MSYS_NO_PATHCONV=1 docker run -d --name consul \
+    -p 127.0.0.1:8500:8500 \
+    -v consul-data:/consul/data \
+    hashicorp/consul:2.0.4 \
+    agent -server -bootstrap-expect=1 -ui -client=0.0.0.0 -data-dir=/consul/data
+```
+
+If the `consul` container already exists, start it instead:
+
+```bash
+docker start consul
+```
+
+Verify that Consul has elected a leader:
+
+```bash
+curl http://127.0.0.1:8500/v1/status/leader
+```
+
+The Consul UI is available at <http://127.0.0.1:8500/ui/>. This single-node setup is for local development, not production. Do not run `--clean` while Terraform is operating; it deletes local state and the Consul `terraform/` KV prefix but does not destroy managed infrastructure.
 
 ## Install K3s Cluster
 ### Task 1 - Build the cluster

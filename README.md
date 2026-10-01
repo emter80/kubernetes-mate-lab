@@ -56,6 +56,7 @@ Canonical Multipass virtual machines and Terraform Infrastructure as Code.
 - 3-node cluster topology (1 control plane + 2 workers)
 - Ubuntu Linux virtual machines
 - Terraform-managed lifecycle
+- Terraform remote state and state locking stored in a locally hosted Consul KV backend
 - GitHub OAuth2 authentication integration for Argo CD using Dex as an identity broker.
 - Argo CD Role-Based Access Control (RBAC) authorization based on GitHub identities.
 
