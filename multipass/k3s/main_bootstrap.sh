@@ -31,7 +31,7 @@ show_usage() {
     echo "  - Show current k3s-* Multipass instances"
     echo "  - Ask for confirmation"
     echo "  - Delete and purge only k3s-* Multipass VMs"
-    echo "  - Remove Terraform cache/state"
+    echo "  - Remove local Terraform cache/state and Consul KV prefix terraform/"
     echo "  - Apply Terraform infrastructure (01-infra)"
     echo "  - Run Kubernetes bootstrap (02-bootstrap)"
     echo ""
@@ -41,14 +41,12 @@ show_usage() {
     echo "  - Show current k3s-* Multipass instances"
     echo "  - Ask for confirmation"
     echo "  - Delete and purge only k3s-* Multipass VMs"
-    echo "  - Remove Terraform cache/state"
+    echo "  - Remove local Terraform cache/state and Consul KV prefix terraform/"
     echo ""
 
     echo "$0 --clean"
-    echo "  Cleanup Terraform local files only:"
-    echo "  - Remove .terraform directories"
-    echo "  - Remove terraform.tfstate files"
-    echo "  - Do not remove Multipass VMs"
+    echo "  Remove Terraform local cache/state and the Consul KV prefix terraform/:"
+    echo "  - Do not destroy managed resources or remove Multipass VMs"
     echo ""
 
     echo "$0 --preflight [--build|--rebuild|--destroy|--clean]"
@@ -134,6 +132,41 @@ check_multipass_network() {
     echo "Multipass network 'multipass': OK"
 }
 
+check_consul() {
+    local leader
+
+    if ! leader="$(curl --fail --silent --max-time 5 http://127.0.0.1:8500/v1/status/leader)"; then
+        echo "Unable to reach Consul at http://127.0.0.1:8500. Is the Consul server running?" >&2
+        echo "Start Consul from Git Bash with:" >&2
+        echo "  docker rm -f consul 2>/dev/null || true" >&2
+        echo "  MSYS_NO_PATHCONV=1 docker run -d --name consul \\" >&2
+        echo "    -p 127.0.0.1:8500:8500 \\" >&2
+        echo "    -v consul-data:/consul/data \\" >&2
+        echo "    hashicorp/consul:2.0.4 \\" >&2
+        echo "    agent -server -bootstrap-expect=1 -ui -client=0.0.0.0 -data-dir=/consul/data" >&2
+        return 1
+    fi
+
+    if [ -z "$leader" ] || [ "$leader" = '""' ]; then
+        echo "Consul is reachable, but no server leader has been elected." >&2
+        return 1
+    fi
+
+    echo "Consul server leader: $leader"
+}
+
+delete_consul_terraform_states() {
+    local consul_kv_url="http://127.0.0.1:8500/v1/kv"
+
+    if ! curl --fail --silent --show-error --max-time 5 \
+        --request DELETE "${consul_kv_url}/terraform/?recurse" >/dev/null; then
+        echo "Failed to remove Consul KV prefix 'terraform/'. Local Terraform files were left untouched." >&2
+        return 1
+    fi
+
+    echo "Removed Consul KV prefix: terraform/"
+}
+
 check_project_layout() {
     if [ ! -f "$INFRA_DIR/main.tf" ] || [ ! -f "$BOOTSTRAP_DIR/bootstrap.sh" ]; then
         echo "Expected project files were not found relative to $ROOT_DIR." >&2
@@ -146,21 +179,24 @@ check_prerequisites() {
 
     case "$mode" in
         --build|--rebuild)
-            require_commands multipass terraform kubectl powershell.exe cygpath find rm sed tail cut grep sort
+            require_commands multipass terraform kubectl powershell.exe cygpath find rm sed tail cut grep sort curl
             check_project_layout
             check_minimum_version multipass "$MIN_MULTIPASS_VERSION"
             check_minimum_version terraform "$MIN_TERRAFORM_VERSION"
             check_multipass_network
+            check_consul
             ;;
         --destroy)
-            require_commands multipass find rm sed tail cut grep
+            require_commands multipass find rm sed tail cut grep curl
+            check_consul
             if ! multipass list >/dev/null 2>&1; then
                 echo "Unable to connect to Multipass. Is the Multipass service running?" >&2
                 return 1
             fi
             ;;
         --clean)
-            require_commands find rm
+            require_commands find rm curl
+            check_consul
             ;;
         *)
             echo "No prerequisite checks are defined for '$mode'." >&2
@@ -265,6 +301,8 @@ clean_terraform() {
         \) \
         -print
 
+    delete_consul_terraform_states
+
     find "$ROOT_DIR" \
         -type d \
         -name ".terraform" \
@@ -353,7 +391,7 @@ rebuild_cluster() {
 
     echo ""
 
-    confirm_destructive_operation "This is destructive operation. Continue? Type YES:" || exit 1
+    confirm_destructive_operation "This deletes k3s-* VMs and local/Consul Terraform state before recreating the cluster. Continue? Type YES:" || exit 1
 
     delete_k3s_instances
     clean_terraform
@@ -396,7 +434,7 @@ destroy_cluster() {
 
     echo ""
 
-    confirm_destructive_operation "This is destructive operation. Continue? Type YES:" || exit 1
+    confirm_destructive_operation "This deletes k3s-* VMs and local/Consul Terraform state. Continue? Type YES:" || exit 1
 
     delete_k3s_instances
     clean_terraform
@@ -408,7 +446,7 @@ cluster_clean_terraform()
     echo "CLEAN TERRAFORM"
     echo "================================="
 
-    confirm_destructive_operation "This is destructive operation. Continue? Type YES:" || exit 1
+    confirm_destructive_operation "This deletes local Terraform state and all Consul keys under terraform/; it does not destroy managed resources. Continue? Type YES:" || exit 1
 
     clean_terraform
 }

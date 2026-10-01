@@ -1,4 +1,5 @@
 # General
+.vscode
 .node-token
 .vagrant/
 join_command.sh
