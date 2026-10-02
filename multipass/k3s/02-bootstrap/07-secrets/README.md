@@ -4,7 +4,7 @@ This module automates the management of Kubernetes secrets using **Bitnami Seale
 
 ## Purpose
 
-The module converts plain Kubernetes `Secret` manifests into encrypted `SealedSecret` resources that are safe to store in Git. Whenever a secret changes, Terraform automatically regenerates the corresponding Sealed Secret, commits the changes, and pushes them to the repository.
+The module converts plain Kubernetes `Secret` manifests into encrypted `SealedSecret` resources that are safe to store in Git. When a secret changes, Terraform regenerates the corresponding Sealed Secret and publishes it so Argo CD can synchronize it.
 
 ## What this module does
 
@@ -12,8 +12,12 @@ The module converts plain Kubernetes `Secret` manifests into encrypted `SealedSe
 - Encrypts each Secret using `kubeseal`
 - Generates a corresponding `SealedSecret` for each application
 - Stores generated manifests under `03-apps/<application>/`
-- Automatically commits and pushes updated Sealed Secrets to Git
+- Automatically commits and pushes only the generated Sealed Secrets to Git
 - Regenerates Sealed Secrets only when the source Secret changes
+
+Git publication is skipped when there are no plaintext inputs or no generated changes. Before
+publishing, the current branch must be synchronized with its upstream. Other staged files are not
+included in the Sealed Secret commit.
 
 ## Directory Structure
 

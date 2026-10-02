@@ -14,6 +14,8 @@ MIN_TERRAFORM_VERSION="1.15.8"
 RED_BG='\033[41m'
 WHITE='\033[97m'
 RESET='\033[0m'
+GITOPS_REVISION=""
+GITOPS_REPO_URL=""
 
 show_usage() {
     echo ""
@@ -177,13 +179,70 @@ check_project_layout() {
     fi
 }
 
+resolve_gitops_source() {
+    local source_paths=(
+        "multipass/k3s/main_bootstrap.sh"
+        "multipass/k3s/02-bootstrap"
+        "multipass/k3s/03-apps"
+    )
+    local branch
+    local repo_url
+    local remote_ref
+    local remote_commit
+    local local_commit
+
+    if ! branch="$(git -C "$ROOT_DIR" branch --show-current)" || [ -z "$branch" ]; then
+        echo "Unable to determine the current Git branch; detached HEAD is not supported." >&2
+        return 1
+    fi
+
+    if ! repo_url="$(git -C "$ROOT_DIR" remote get-url origin)"; then
+        echo "Unable to read the Git origin URL." >&2
+        return 1
+    fi
+
+    case "$repo_url" in
+        https://*@*|http://*@*)
+            echo "Git origin URL must not contain embedded credentials." >&2
+            return 1
+            ;;
+    esac
+
+    if ! git -C "$ROOT_DIR" diff --quiet HEAD -- "${source_paths[@]}"; then
+        echo "Commit and push the bootstrap, GitOps, and app changes before building the cluster." >&2
+        return 1
+    fi
+
+    if [ -n "$(git -C "$ROOT_DIR" ls-files --others --exclude-standard -- "${source_paths[@]}")" ]; then
+        echo "Commit and push untracked bootstrap, GitOps, and app files before building the cluster." >&2
+        return 1
+    fi
+
+    if ! remote_ref="$(git -C "$ROOT_DIR" ls-remote --exit-code --heads "$repo_url" "refs/heads/$branch")"; then
+        echo "Branch '$branch' was not found on origin; push it before building the cluster." >&2
+        return 1
+    fi
+
+    remote_commit="${remote_ref%%$'\t'*}"
+    local_commit="$(git -C "$ROOT_DIR" rev-parse HEAD)"
+    if [ "$local_commit" != "$remote_commit" ]; then
+        echo "Push the current commit on '$branch' before building; Argo CD reads the remote branch." >&2
+        return 1
+    fi
+
+    GITOPS_REVISION="$branch"
+    GITOPS_REPO_URL="$repo_url"
+    echo "Argo CD source: $GITOPS_REPO_URL ($GITOPS_REVISION)"
+}
+
 check_prerequisites() {
     local mode="$1"
 
     case "$mode" in
         --build|--rebuild)
-            require_commands multipass terraform kubectl powershell.exe cygpath find rm sed tail cut grep sort curl
+            require_commands git multipass terraform kubectl powershell.exe cygpath find rm sed tail cut grep sort curl
             check_project_layout
+            resolve_gitops_source
             check_minimum_version multipass "$MIN_MULTIPASS_VERSION"
             check_minimum_version terraform "$MIN_TERRAFORM_VERSION"
             check_multipass_network
@@ -356,6 +415,8 @@ bootstrap_cluster() {
     echo "================================="
 
     (
+        export TF_VAR_git_revision="$GITOPS_REVISION"
+        export TF_VAR_git_repo_url="$GITOPS_REPO_URL"
         cd "$BOOTSTRAP_DIR"
         ./bootstrap.sh
     )

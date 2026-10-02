@@ -18,8 +18,8 @@ resource "kubernetes_manifest" "platform_applicationset" {
       generators = [
         {
           git = {
-            repoURL  = "https://github.com/emter80/kubernetes-mate-lab.git"
-            revision = "main"
+            repoURL  = var.git_repo_url
+            revision = var.git_revision
 
             files = [
               {
@@ -68,14 +68,14 @@ spec:
       valueFiles:
         - $values/{{ .valuesFile }}
 
-  - repoURL: https://github.com/emter80/kubernetes-mate-lab.git
-    targetRevision: main
+  - repoURL: ${var.git_repo_url}
+    targetRevision: ${var.git_revision}
     ref: values
   {{- end }}
 
   {{- if .kustomizePath }}
-  - repoURL: https://github.com/emter80/kubernetes-mate-lab.git
-    targetRevision: main
+  - repoURL: ${var.git_repo_url}
+    targetRevision: ${var.git_revision}
     path: {{ .kustomizePath }}
   {{- end }}
       EOT

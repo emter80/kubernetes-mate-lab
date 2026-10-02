@@ -3,6 +3,11 @@ locals {
     for file in fileset("${path.module}/topsecret", "plain-*.yaml") :
     replace(replace(file, "plain-", ""), "-secret.yaml", "") => file
   }
+
+  sealed_secret_paths = [
+    for app in keys(local.secret_files) :
+    "../../03-apps/${app}/sealed-${app}-secret.yaml"
+  ]
 }
 
 
@@ -49,16 +54,41 @@ resource "terraform_data" "git_commit_sealed_secrets" {
       "-c"
     ]
 
-    command = <<EOF
-git add ../../03-apps/*/sealed-*-secret.yaml
+    working_dir = path.module
 
-if git diff --cached --quiet; then
-  echo "No changes to commit"
-else
-  CURRENT_DATE=$(date "+%Y-%m-%d %H:%M:%S")
-  git commit -m "Update sealed secrets - $CURRENT_DATE"
-  git push
+    environment = {
+      SEALED_SECRET_PATHS = join("\n", local.sealed_secret_paths)
+    }
+
+    command = <<EOF
+set -euo pipefail
+
+if [[ -z "$${SEALED_SECRET_PATHS}" ]]; then
+  echo "No plaintext secrets found; skipping Git publication."
+  exit 0
 fi
+
+mapfile -t sealed_paths <<< "$${SEALED_SECRET_PATHS}"
+git add -- "$${sealed_paths[@]}"
+
+if git diff --cached --quiet -- "$${sealed_paths[@]}"; then
+  echo "No sealed-secret changes to commit."
+  exit 0
+fi
+
+upstream=$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}')
+git fetch --quiet
+ahead=$(git rev-list --count "$${upstream}..HEAD")
+behind=$(git rev-list --count "HEAD..$${upstream}")
+
+if [[ "$${ahead}" -ne 0 || "$${behind}" -ne 0 ]]; then
+  echo "Local branch differs from its upstream; synchronize it before publishing secrets." >&2
+  exit 1
+fi
+
+current_date=$(date "+%Y-%m-%d %H:%M:%S")
+git commit --only -m "Update sealed secrets - $current_date" -- "$${sealed_paths[@]}"
+git push
 EOF
 
   }
@@ -84,7 +114,7 @@ output "sealed_secret_git_files" {
 output "sealed_secret_commit_info" {
   value = {
     message = "Sealed secrets generated and committed"
-    files   = [
+    files = [
       for app in keys(local.secret_files) :
       "03-apps/${app}/sealed-${app}-secret.yaml"
     ]

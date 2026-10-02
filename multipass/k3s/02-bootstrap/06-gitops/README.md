@@ -94,6 +94,13 @@ terraform init
 terraform apply
 ```
 
+## Git Revision
+
+When invoked by `main_bootstrap.sh`, this module configures Argo CD to read the current branch and
+`origin` URL. The branch and its application changes must already be pushed; bootstrap rejects a
+missing or out-of-date remote branch. Argo CD uses that revision for the ApplicationSet generator,
+Helm values, and Kustomize sources. Running this module directly defaults to `main`.
+
 ## Result
 
 After this module completes, Argo CD continuously monitors the Git repository and automatically deploys or updates applications defined under:

@@ -1,0 +1,7 @@
+name: grafana
+namespace: monitoring
+repoURL: https://grafana.github.io/helm-charts
+chart: grafana
+targetRevision: 10.5.15
+valuesFile: multipass/k3s/03-apps/grafana/values.yaml
+kustomizePath: multipass/k3s/03-apps/grafana
