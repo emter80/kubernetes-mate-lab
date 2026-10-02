@@ -181,9 +181,9 @@ check_project_layout() {
 
 resolve_gitops_source() {
     local source_paths=(
-        "multipass/k3s/main_bootstrap.sh"
-        "multipass/k3s/02-bootstrap"
-        "multipass/k3s/03-apps"
+        "main_bootstrap.sh"
+        "02-bootstrap"
+        "03-apps"
     )
     local branch
     local repo_url
