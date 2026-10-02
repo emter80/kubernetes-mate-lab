@@ -63,6 +63,13 @@ locals {
     package_upgrade: true
 
     write_files:
+      - path: /etc/k3s-resolv.conf
+        permissions: '0644'
+        owner: root:root
+        content: |
+          nameserver 1.1.1.1
+          nameserver 8.8.8.8
+
       - path: /etc/netplan/10-custom.yaml
         permissions: '0640'
         owner: root:root
@@ -84,7 +91,7 @@ locals {
 
     runcmd:
       - netplan apply
-      - curl -sfL https://get.k3s.io | K3S_TOKEN=${local.k3s_token} sh -s - server --cluster-init --node-ip=${local.master_ip} --flannel-iface=eth1
+      - curl -sfL https://get.k3s.io | K3S_TOKEN=${local.k3s_token} sh -s - server --cluster-init --node-ip=${local.master_ip} --flannel-iface=eth1 --resolv-conf=/etc/k3s-resolv.conf
   EOT
 }
 
@@ -126,6 +133,13 @@ resource "multipass_instance" "k3s-worker" {
     package_upgrade: true
 
     write_files:
+      - path: /etc/k3s-resolv.conf
+        permissions: '0644'
+        owner: root:root
+        content: |
+          nameserver 1.1.1.1
+          nameserver 8.8.8.8
+
       - path: /etc/netplan/10-custom.yaml
         permissions: '0640'
         owner: root:root
@@ -141,7 +155,7 @@ resource "multipass_instance" "k3s-worker" {
 
     runcmd:
       - netplan apply
-      - curl -sfL https://get.k3s.io | K3S_URL=https://${local.master_ip}:6443 K3S_TOKEN=${local.k3s_token} sh -s - --node-ip=${local.worker_ips[count.index]} --flannel-iface=eth1
+      - curl -sfL https://get.k3s.io | K3S_URL=https://${local.master_ip}:6443 K3S_TOKEN=${local.k3s_token} sh -s - --node-ip=${local.worker_ips[count.index]} --flannel-iface=eth1 --resolv-conf=/etc/k3s-resolv.conf
   EOT
 
   # Wait for the master to be created before creating workers

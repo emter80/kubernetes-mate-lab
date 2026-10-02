@@ -67,13 +67,16 @@ resource "terraform_data" "git_commit_argocd_github_oauth_secret" {
 
 
     command = <<EOF
-git add ${path.module}/sealed-argocd-github-oauth-secret.yaml
+set -e
 
-if git diff --cached --quiet; then
+sealed_secret_path="${path.module}/sealed-argocd-github-oauth-secret.yaml"
+git add -- "$sealed_secret_path"
+
+if git diff --cached --quiet -- "$sealed_secret_path"; then
   echo "No changes to commit"
 else
   CURRENT_DATE=$(date "+%Y-%m-%d %H:%M:%S")
-  git commit -m "Update Argo CD GitHub OAuth sealed secret - $CURRENT_DATE"
+  git commit --only -m "Update Argo CD GitHub OAuth sealed secret - $CURRENT_DATE" -- "$sealed_secret_path"
   git push
 fi
 EOF
