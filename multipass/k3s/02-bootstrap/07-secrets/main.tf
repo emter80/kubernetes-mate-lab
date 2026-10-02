@@ -10,11 +10,8 @@ locals {
   ]
 }
 
-
 resource "terraform_data" "seal_secret" {
-
   for_each = local.secret_files
-
   triggers_replace = [
     filesha256("${path.module}/topsecret/${each.value}")
   ]
@@ -30,7 +27,6 @@ kubeseal \
 < ${path.module}/topsecret/${each.value} \
 > ${path.module}/../../03-apps/${each.key}/sealed-${each.key}-secret.yaml
 EOF
-
   }
 }
 
@@ -48,14 +44,12 @@ resource "terraform_data" "git_commit_sealed_secrets" {
   ]
 
   provisioner "local-exec" {
-
     interpreter = [
       "C:/Program Files/Git/bin/bash.exe",
       "-c"
     ]
 
     working_dir = path.module
-
     environment = {
       SEALED_SECRET_PATHS = join("\n", local.sealed_secret_paths)
     }
@@ -87,10 +81,9 @@ if [[ "$${ahead}" -ne 0 || "$${behind}" -ne 0 ]]; then
 fi
 
 current_date=$(date "+%Y-%m-%d %H:%M:%S")
-git commit --only -m "Update sealed secrets - $current_date" -- "$${sealed_paths[@]}"
+git commit --only -m "Updated app sealed secrets - $current_date" -- "$${sealed_paths[@]}"
 git push
 EOF
-
   }
 }
 
