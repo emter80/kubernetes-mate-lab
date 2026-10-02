@@ -9,8 +9,8 @@ DIRS=(
   "03-sealed-secrets"
   "04-argocd"
   "05-ingress"
-  "07-secrets"
   "06-gitops"
+  "07-secrets"
   "08-trust-manager"
   "09-oidc"
 )
