@@ -97,12 +97,12 @@ resource "helm_release" "argocd" {
     terraform_data.apply_argocd_github_oauth_secret
   ]
 
-  name = "argocd"
-  namespace = kubernetes_namespace_v1.argocd.metadata[0].name
+  name             = "argocd"
+  namespace        = kubernetes_namespace_v1.argocd.metadata[0].name
   create_namespace = false
-  repository = "https://argoproj.github.io/argo-helm"
-  chart = "argo-cd"
-  version = "10.2.1"
+  repository       = "https://argoproj.github.io/argo-helm"
+  chart            = "argo-cd"
+  version          = "10.2.1"
   values = [
     yamlencode({
       server = {
@@ -113,7 +113,7 @@ resource "helm_release" "argocd" {
 
       configs = {
         cm = {
-          url = "https://argocd.multipass.k3s"
+          url          = "https://argocd.multipass.k3s"
           "dex.config" = <<-EOT
             connectors:
             - type: github
@@ -127,11 +127,11 @@ resource "helm_release" "argocd" {
 
         rbac = {
           "policy.default" = "role:readonly"
-          "policy.csv" = <<-EOT
+          "policy.csv"     = <<-EOT
             g, emter80, role:admin
             g, emter80@gmail.com, role:admin
           EOT
-          scopes = "[groups, email, preferred_username]"
+          scopes           = "[groups, email, preferred_username]"
         }
       }
     })
