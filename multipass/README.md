@@ -2,14 +2,12 @@
 
 Before running this project, ensure you have the following software installed on your Windows11 host machine:
 
-* **Multipass:** version  1.16.3 (or newer)
-* **Terraform:** version  1.15.8 (or newer)
-* **Shell environment:** sh executable, e.g., Install Git Bash on Windows – must be added to your system PATH
-* **Consul:** a local Consul server available at `http://127.0.0.1:8500`
-* **Docker Desktop:** required to run the local Consul container shown below
-* **Virtual Switch:** setup a Hyper-V Virtual Switch named "multipass" (required for static IP assignment and bridge networking)
-
-    [See details on how to setup Virtual Switch](https://dev.to/madalinignisca/how-to-permanent-private-ip-on-multipass-on-windows-with-hyper-v-14k6)
+* **Multipass:** version  1.16.3 (or newer): https://canonical.com/multipass/install
+* **Terraform:** version  1.15.8 (or newer): https://developer.hashicorp.com/terraform/install
+* **Shell environment:** sh executable, e.g., Install Git Bash on Windows – must be added to your system PATH: https://gitforwindows.org/index.html
+* **Consul:** a local Consul server available at `http://127.0.0.1:8500`: https://developer.hashicorp.com/consul/install
+* **Docker Desktop:** required to run the local Consul container: https://www.docker.com/products/docker-desktop/
+* **Virtual Switch:** setup a Hyper-V Virtual Switch named "multipass" (required for static IP assignment and bridge networking): https://dev.to/madalinignisca/how-to-permanent-private-ip-on-multipass-on-windows-with-hyper-v-14k6
 
 ## Start Local Consul
 
