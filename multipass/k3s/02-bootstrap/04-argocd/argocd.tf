@@ -3,7 +3,6 @@ locals {
 }
 
 resource "kubernetes_namespace_v1" "argocd" {
-
   metadata {
     name = "argocd"
   }
@@ -59,11 +58,14 @@ if git diff --cached --quiet -- "$sealed_secret_path"; then
   echo "No changes to commit"
 else
   CURRENT_DATE=$(date "+%Y-%m-%d %H:%M:%S")
+<<<<<<< HEAD
   git commit --only -m "Update Argo CD GitHub OAuth sealed secret - $CURRENT_DATE" -- "$sealed_secret_path"
+=======
+  git commit -m "Updated argocd-github-oauth-secret sealed secret - $CURRENT_DATE"
+>>>>>>> main
   git push
 fi
 EOF
-
   }
 }
 
@@ -88,7 +90,6 @@ kubectl apply \
 --kubeconfig ~/.kube/config.multipass.k3s \
 -f ${path.module}/sealed-argocd-github-oauth-secret.yaml
 EOF
-
   }
 }
 
