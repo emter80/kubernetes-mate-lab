@@ -50,13 +50,19 @@ resource "terraform_data" "git_commit_argocd_github_oauth_secret" {
     ]
 
     command = <<EOF
-git add ${path.module}/sealed-argocd-github-oauth-secret.yaml
+set -e
+sealed_secret_path="${path.module}/sealed-argocd-github-oauth-secret.yaml"
+git add -- "$sealed_secret_path"
 
-if git diff --cached --quiet; then
+if git diff --cached --quiet -- "$sealed_secret_path"; then
   echo "No changes to commit"
 else
   CURRENT_DATE=$(date "+%Y-%m-%d %H:%M:%S")
+<<<<<<< HEAD
+  git commit --only -m "Update Argo CD GitHub OAuth sealed secret - $CURRENT_DATE" -- "$sealed_secret_path"
+=======
   git commit -m "Updated argocd-github-oauth-secret sealed secret - $CURRENT_DATE"
+>>>>>>> main
   git push
 fi
 EOF
@@ -88,7 +94,6 @@ EOF
 }
 
 resource "helm_release" "argocd" {
-
   depends_on = [
     terraform_data.apply_argocd_github_oauth_secret
   ]
@@ -99,7 +104,6 @@ resource "helm_release" "argocd" {
   repository       = "https://argoproj.github.io/argo-helm"
   chart            = "argo-cd"
   version          = "10.2.1"
-
   values = [
     yamlencode({
       server = {
@@ -126,8 +130,9 @@ resource "helm_release" "argocd" {
           "policy.default" = "role:readonly"
           "policy.csv"     = <<-EOT
             g, emter80, role:admin
+            g, emter80@gmail.com, role:admin
           EOT
-          scopes           = "[groups,email]"
+          scopes           = "[groups, email, preferred_username]"
         }
       }
     })
