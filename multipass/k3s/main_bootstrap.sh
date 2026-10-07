@@ -333,7 +333,9 @@ delete_k3s_instances() {
     echo "Instances to delete:"
     echo ""
 
-    echo "$INSTANCES" | sed 's/^/  - /'
+    while IFS= read -r vm; do
+        printf '  - %s\n' "$vm"
+    done <<< "$INSTANCES"
     echo ""
 
     while read -r vm; do
