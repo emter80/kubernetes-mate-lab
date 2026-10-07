@@ -1,0 +1,3 @@
+# ignore bitnami sealed secrets
+multipass/k3s/02-bootstrap/04-argocd/sealed-argocd-github-oauth-secret.yaml
+multipass/k3s/02-bootstrap/04-argocd/sealed-argocd-secret.yaml
