@@ -1,0 +1,8 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "SealedSecret for ArgoCD GitHub OAuth"
+paths = [
+  '''multipass/k3s/02-bootstrap/04-argocd/sealed-argocd-github-oauth-secret\.yaml$''',
+]
