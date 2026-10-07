@@ -278,8 +278,10 @@ configure_terraform_helm_environment() {
         'generated: "0001-01-01T00:00:00Z"' \
         'repositories: []' > "$repository_config"
 
-    export HELM_REPOSITORY_CONFIG="$(cygpath -w "$repository_config")"
-    export HELM_REPOSITORY_CACHE="$(cygpath -w "$repository_cache")"
+    HELM_REPOSITORY_CONFIG="$(cygpath -w "$repository_config")"
+    export HELM_REPOSITORY_CONFIG
+    HELM_REPOSITORY_CACHE="$(cygpath -w "$repository_cache")"
+    export HELM_REPOSITORY_CACHE
 
     echo "Terraform Helm repository config/cache isolated under $helm_home"
 }
@@ -331,7 +333,9 @@ delete_k3s_instances() {
     echo "Instances to delete:"
     echo ""
 
-    echo "$INSTANCES" | sed 's/^/  - /'
+    while IFS= read -r vm; do
+        printf '  - %s\n' "$vm"
+    done <<< "$INSTANCES"
     echo ""
 
     while read -r vm; do
