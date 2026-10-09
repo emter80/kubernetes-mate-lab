@@ -1,0 +1,4 @@
+# Check out every text file with LF, whatever core.autocrlf says. Everything here runs on Linux
+# (VMs, containers) or in bash, and CRLF changes Terraform heredocs such as the cloud-init in
+# 01-infra/main.tf, which forces Multipass VM replacement on the next apply.
+* text=auto eol=lf
