@@ -57,7 +57,7 @@ The next `main_bootstrap.sh --build` / `--rebuild` (or `terraform apply` in this
 
 ## Backup
 
-The Consul container runs on the same host as the cluster. Keep an encrypted copy elsewhere:
+Consul runs on the same host as the cluster. Keep an encrypted copy elsewhere:
 
 ```bash
 ./main_bootstrap.sh --backup-secrets

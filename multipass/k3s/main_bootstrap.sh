@@ -18,7 +18,6 @@ GITOPS_REVISION=""
 GITOPS_REPO_URL=""
 SECRETS_KV_URL="http://127.0.0.1:8500/v1/kv"
 SECRETS_PREFIX="topsecret/"
-CONSUL_CONTAINER="consul"
 KUBECONFIG_FILE="$HOME/.kube/config.multipass.k3s"
 
 show_usage() {
@@ -159,16 +158,8 @@ check_consul() {
 
     if ! leader="$(curl --fail --silent --max-time 5 http://127.0.0.1:8500/v1/status/leader)"; then
         echo "Unable to reach Consul at http://127.0.0.1:8500. Is the Consul server running?" >&2
-        echo ">>Start Consul container"
-        echo "  docker start consul"
-        echo ">>OR"
-        echo ">>Create Consul container from Git Bash with:" >&2
-        echo "  docker rm -f consul 2>/dev/null || true" >&2
-        echo "  MSYS_NO_PATHCONV=1 docker run -d --name consul \\" >&2
-        echo "    -p 127.0.0.1:8500:8500 \\" >&2
-        echo "    -v consul-data:/consul/data \\" >&2
-        echo "    hashicorp/consul:2.0.4 \\" >&2
-        echo "    agent -server -bootstrap-expect=1 -ui -client=0.0.0.0 -data-dir=/consul/data" >&2
+        echo "Start it from Git Bash in multipass/k3s with:" >&2
+        echo "  powershell.exe -NoProfile -ExecutionPolicy Bypass -File start-consul.ps1" >&2
         return 1
     fi
 
@@ -243,7 +234,7 @@ backup_secrets() {
         return 1
     fi
 
-    export_json="$(docker exec "$CONSUL_CONTAINER" consul kv export "$SECRETS_PREFIX")"
+    export_json="$(CONSUL_HTTP_ADDR=127.0.0.1:8500 consul kv export "$SECRETS_PREFIX")"
     if [ -z "$export_json" ] || [ "$export_json" = "[]" ]; then
         echo "Consul KV prefix '$SECRETS_PREFIX' is empty; nothing to back up." >&2
         return 1
@@ -288,7 +279,7 @@ restore_secrets() {
 
     confirm_destructive_operation "This overwrites keys under Consul '$SECRETS_PREFIX' with the backup content. Continue? Type YES:" || exit 1
 
-    printf '%s' "$import_json" | docker exec -i "$CONSUL_CONTAINER" consul kv import -
+    printf '%s' "$import_json" | CONSUL_HTTP_ADDR=127.0.0.1:8500 consul kv import -
     echo "Secrets restored into Consul KV prefix: $SECRETS_PREFIX"
 }
 
@@ -479,12 +470,8 @@ check_prerequisites() {
             check_consul
             ;;
         --backup-secrets|--restore-secrets)
-            require_commands docker openssl curl
+            require_commands consul openssl curl
             check_consul
-            if ! docker exec "$CONSUL_CONTAINER" consul version >/dev/null 2>&1; then
-                echo "Consul container '$CONSUL_CONTAINER' is not running (docker start $CONSUL_CONTAINER)." >&2
-                return 1
-            fi
             ;;
         --recover-secrets)
             require_commands kubectl openssl base64 curl

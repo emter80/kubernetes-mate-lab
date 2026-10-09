@@ -5,29 +5,29 @@ Before running this project, ensure you have the following software installed on
 * **Multipass:** version  1.16.3 (or newer): https://canonical.com/multipass/install
 * **Terraform:** version  1.15.8 (or newer): https://developer.hashicorp.com/terraform/install
 * **Shell environment:** sh executable, e.g., Install Git Bash on Windows – must be added to your system PATH: https://gitforwindows.org/index.html
-* **Consul:** a local Consul server available at `http://127.0.0.1:8500`: https://developer.hashicorp.com/consul/install
-* **Docker Desktop:** required to run the local Consul container: https://www.docker.com/products/docker-desktop/
+* **Consul:** version 2.0.4, native Windows binary in PATH (`winget install HashiCorp.Consul`): https://developer.hashicorp.com/consul/install
 * **Virtual Switch:** setup a Hyper-V Virtual Switch named "multipass" (required for static IP assignment and bridge networking): https://dev.to/madalinignisca/how-to-permanent-private-ip-on-multipass-on-windows-with-hyper-v-14k6
 
 ## Start Local Consul
 
-Start Consul before building or rebuilding the cluster. The Terraform backend stores state and locks in Consul; the local Docker volume preserves its data when the container is stopped or removed.
+Start Consul before building or rebuilding the cluster. The Terraform backend stores state and locks in Consul, and `topsecret/` holds the cluster secrets.
 
-From Git Bash, start a new Consul container:
-
-```bash
-MSYS_NO_PATHCONV=1 docker run -d --name consul \
-    -p 127.0.0.1:8500:8500 \
-    -v consul-data:/consul/data \
-    hashicorp/consul:2.0.4 \
-    agent -server -bootstrap-expect=1 -ui -client=0.0.0.0 -data-dir=/consul/data
-```
-
-If the `consul` container already exists, start it instead:
+From Git Bash in `multipass/k3s`:
 
 ```bash
-docker start consul
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File start-consul.ps1
 ```
+
+The script starts a single-node server in the background, bound to `127.0.0.1:8500` only, with data in `%USERPROFILE%\.consul\data` and logs in `%USERPROFILE%\.consul\consul*.log`. It does nothing if Consul is already running.
+
+To start Consul automatically at logon (a shortcut in the user's Startup folder, no administrator rights; visible in Task Manager > Startup apps):
+
+```bash
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File install-consul-autostart.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File install-consul-autostart.ps1 -Uninstall   # remove it
+```
+
+The raft log store is set to BoltDB in `%USERPROFILE%\.consul\consul.hcl`: the default WAL store fails on Windows with `sync ...\raft\wal: Access is denied`.
 
 Verify that Consul has elected a leader:
 
@@ -68,10 +68,10 @@ Everything under `topsecret/` is a credential, not data: it can always be recrea
 
 ### 1. Consul lost, backup available
 
+If `%USERPROFILE%\.consul\data` is gone or corrupted, move it aside and start an empty Consul:
+
 ```bash
-docker rm -f consul 2>/dev/null || true
-MSYS_NO_PATHCONV=1 docker run -d --name consul -p 127.0.0.1:8500:8500 -v consul-data:/consul/data \
-    hashicorp/consul:2.0.4 agent -server -bootstrap-expect=1 -ui -client=0.0.0.0 -data-dir=/consul/data
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File start-consul.ps1
 ./main_bootstrap.sh --restore-secrets ~/mate-lab-topsecret-<date>.enc
 ```
 
@@ -79,7 +79,7 @@ Nothing changes for the cluster, Git or the Windows trust store. Terraform state
 
 ### 2. Consul and backup lost, cluster still running
 
-Start a new Consul container (as above), then copy the secrets back from the cluster:
+Start an empty Consul (as above), then copy the secrets back from the cluster:
 
 ```bash
 ./main_bootstrap.sh --recover-secrets
@@ -90,7 +90,7 @@ It restores the Sealed Secrets key, the root CA (only if valid for more than a y
 
 ### 3. Everything lost (Consul, backup and cluster)
 
-1. Start a new Consul container (as above).
+1. Start an empty Consul (as above).
 2. Rotate the credentials that cannot be read back:
    - GitHub → Settings → Developer settings → OAuth Apps → **Generate a new client secret** for the Argo CD app and the Dex app.
    - Choose a new Dex ↔ Headlamp static client secret (the same value in both files).
