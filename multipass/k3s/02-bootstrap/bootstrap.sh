@@ -30,7 +30,7 @@ for dir in "${DIRS[@]}"; do
         fi
     done
 
-    terraform init -upgrade
+    terraform init
 
     echo "================================="
     echo "Terraform validate: $dir"

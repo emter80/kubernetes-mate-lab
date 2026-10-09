@@ -619,7 +619,7 @@ terraform_apply() {
 
     cd "$DIR"
 
-    terraform init -upgrade
+    terraform init
 
     terraform validate
 
