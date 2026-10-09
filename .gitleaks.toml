@@ -2,7 +2,7 @@
 useDefault = true
 
 [allowlist]
-description = "SealedSecret for ArgoCD GitHub OAuth"
+description = "SealedSecret manifests: encryptedData is ciphertext only the in-cluster controller can decrypt"
 paths = [
-  '''multipass/k3s/02-bootstrap/04-argocd/sealed-argocd-github-oauth-secret\.yaml$''',
+  '''(^|/)sealed-[^/]+-secret\.yaml$''',
 ]

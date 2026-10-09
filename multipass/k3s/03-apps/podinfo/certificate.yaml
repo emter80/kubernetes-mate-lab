@@ -1,0 +1,16 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+
+metadata:
+  name: podinfo-cert
+  namespace: podinfo
+
+spec:
+  secretName: podinfo-tls
+
+  issuerRef:
+    name: multipass-ca
+    kind: ClusterIssuer
+
+  dnsNames:
+    - podinfo.multipass.k3s

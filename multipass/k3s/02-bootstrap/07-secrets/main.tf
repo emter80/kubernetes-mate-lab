@@ -1,46 +1,78 @@
-locals {
-  secret_files = {
-    for file in fileset("${path.module}/topsecret", "plain-*.yaml") :
-    replace(replace(file, "plain-", ""), "-secret.yaml", "") => file
+# Plain Secret manifests live in Consul KV: topsecret/apps/<app>.yaml -> 03-apps/<app>/sealed-<app>-secret.yaml
+data "consul_key_prefix" "app_secrets" {
+  path_prefix = "topsecret/apps/"
+}
+
+data "consul_keys" "sealing" {
+  error_on_missing_keys = true
+
+  key {
+    name = "cert"
+    path = "topsecret/sealed-secrets/tls.crt"
   }
 
-  sealed_secret_paths = [
-    for app in keys(local.secret_files) :
-    "../../03-apps/${app}/sealed-${app}-secret.yaml"
-  ]
+  key {
+    name = "key"
+    path = "topsecret/sealed-secrets/tls.key"
+  }
+}
+
+locals {
+  hash_annotation = "mate-lab/source-hash"
+
+  secrets = {
+    for name, plain in data.consul_key_prefix.app_secrets.subkeys : trimsuffix(name, ".yaml") => {
+      plain  = plain
+      sealed = "../../03-apps/${trimsuffix(name, ".yaml")}/sealed-${trimsuffix(name, ".yaml")}-secret.yaml"
+      # Keyed hash: changes when the plaintext or the sealing key changes; reveals nothing without the private key
+      hash = sha256("${data.consul_keys.sealing.var.key}${plain}")
+    }
+    if endswith(name, ".yaml")
+  }
+
+  # Only secrets whose committed SealedSecret was produced from a different plaintext or key
+  stale_secrets = toset([
+    for app, secret in local.secrets : app
+    if try(jsondecode(file("${path.module}/${secret.sealed}")).spec.template.metadata.annotations[local.hash_annotation], "") != secret.hash
+  ])
 }
 
 resource "terraform_data" "seal_secret" {
-  for_each = local.secret_files
+  for_each = local.stale_secrets
   triggers_replace = [
-    filesha256("${path.module}/topsecret/${each.value}")
+    local.secrets[each.key].hash
   ]
 
   provisioner "local-exec" {
     interpreter = ["C:/Program Files/Git/bin/bash.exe", "-c"]
 
+    environment = {
+      PLAIN_SECRET = local.secrets[each.key].plain
+      SEALING_CERT = data.consul_keys.sealing.var.cert
+    }
+
     command = <<EOF
-kubeseal \
---kubeconfig ~/.kube/config.multipass.k3s \
---controller-name sealed-secrets-controller \
---controller-namespace sealed-secrets \
-< ${path.module}/topsecret/${each.value} \
-> ${path.module}/../../03-apps/${each.key}/sealed-${each.key}-secret.yaml
+set -euo pipefail
+cert_file="$(mktemp)"
+trap 'rm -f -- "$cert_file"' EXIT
+printf '%s' "$SEALING_CERT" > "$cert_file"
+printf '%s' "$PLAIN_SECRET" | \
+kubectl annotate --local -f - ${local.hash_annotation}="${local.secrets[each.key].hash}" -o yaml | \
+kubeseal --cert "$cert_file" \
+> "${path.module}/${local.secrets[each.key].sealed}"
 EOF
   }
 }
 
 resource "terraform_data" "git_commit_sealed_secrets" {
+  count = length(local.stale_secrets) > 0 ? 1 : 0
 
   depends_on = [
     terraform_data.seal_secret
   ]
 
   triggers_replace = [
-    join(",", [
-      for file in local.secret_files :
-      filesha256("${path.module}/topsecret/${file}")
-    ])
+    join(",", [for app in local.stale_secrets : local.secrets[app].hash])
   ]
 
   provisioner "local-exec" {
@@ -51,16 +83,11 @@ resource "terraform_data" "git_commit_sealed_secrets" {
 
     working_dir = path.module
     environment = {
-      SEALED_SECRET_PATHS = join("\n", local.sealed_secret_paths)
+      SEALED_SECRET_PATHS = join("\n", [for app in local.stale_secrets : local.secrets[app].sealed])
     }
 
     command = <<EOF
 set -euo pipefail
-
-if [[ -z "$${SEALED_SECRET_PATHS}" ]]; then
-  echo "No plaintext secrets found; skipping Git publication."
-  exit 0
-fi
 
 mapfile -t sealed_paths <<< "$${SEALED_SECRET_PATHS}"
 git add -- "$${sealed_paths[@]}"
@@ -89,27 +116,15 @@ EOF
 
 output "sealed_secret_mapping" {
   value = {
-    for app, file in local.secret_files :
+    for app, secret in local.secrets :
     app => {
-      source = "topsecret/${file}"
-      target = "../../03-apps/${app}/sealed-${app}-secret.yaml"
+      source = "consul: topsecret/apps/${app}.yaml"
+      target = secret.sealed
     }
   }
 }
 
-output "sealed_secret_git_files" {
-  value = [
-    for app in keys(local.secret_files) :
-    "../../03-apps/${app}/sealed-${app}-secret.yaml"
-  ]
-}
-
-output "sealed_secret_commit_info" {
-  value = {
-    message = "Sealed secrets generated and committed"
-    files = [
-      for app in keys(local.secret_files) :
-      "03-apps/${app}/sealed-${app}-secret.yaml"
-    ]
-  }
+output "resealed_secrets" {
+  description = "Secrets re-sealed in this run (plaintext or sealing key changed)"
+  value       = local.stale_secrets
 }

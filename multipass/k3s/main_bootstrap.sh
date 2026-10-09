@@ -16,6 +16,9 @@ WHITE='\033[97m'
 RESET='\033[0m'
 GITOPS_REVISION=""
 GITOPS_REPO_URL=""
+SECRETS_KV_URL="http://127.0.0.1:8500/v1/kv"
+SECRETS_PREFIX="topsecret/"
+KUBECONFIG_FILE="$HOME/.kube/config.multipass.k3s"
 
 show_usage() {
     echo ""
@@ -51,7 +54,23 @@ show_usage() {
     echo "  - Do not destroy managed resources or remove Multipass VMs"
     echo ""
 
-    echo "$0 --preflight [--build|--rebuild|--destroy|--clean]"
+    echo "$0 --backup-secrets [file]"
+    echo "  Export the Consul KV prefix topsecret/ to a password-encrypted file:"
+    echo "  - Default file: ~/mate-lab-topsecret-<date>.enc (keep it outside this host)"
+    echo ""
+
+    echo -e "${RED_BG}${WHITE}$0 --restore-secrets <file>${RESET}"
+    echo "  Decrypt a backup and import it into the Consul KV prefix topsecret/:"
+    echo "  - Overwrites existing keys with the same names"
+    echo ""
+
+    echo "$0 --recover-secrets"
+    echo "  Recover secrets missing in Consul topsecret/ from the running cluster:"
+    echo "  - Sealed Secrets key, root CA (if valid > 1 year) and plain Secret manifests"
+    echo "  - Never overwrites keys that already exist in Consul"
+    echo ""
+
+    echo "$0 --preflight [--build|--rebuild|--destroy|--clean|--backup-secrets|--restore-secrets|--recover-secrets]"
     echo "  Run prerequisite checks only; defaults to --build checks"
     echo ""
 
@@ -139,16 +158,8 @@ check_consul() {
 
     if ! leader="$(curl --fail --silent --max-time 5 http://127.0.0.1:8500/v1/status/leader)"; then
         echo "Unable to reach Consul at http://127.0.0.1:8500. Is the Consul server running?" >&2
-        echo ">>Start Consul container"
-        echo "  docker start consul"
-        echo ">>OR"
-        echo ">>Create Consul container from Git Bash with:" >&2
-        echo "  docker rm -f consul 2>/dev/null || true" >&2
-        echo "  MSYS_NO_PATHCONV=1 docker run -d --name consul \\" >&2
-        echo "    -p 127.0.0.1:8500:8500 \\" >&2
-        echo "    -v consul-data:/consul/data \\" >&2
-        echo "    hashicorp/consul:2.0.4 \\" >&2
-        echo "    agent -server -bootstrap-expect=1 -ui -client=0.0.0.0 -data-dir=/consul/data" >&2
+        echo "Start it from Git Bash in multipass/k3s with:" >&2
+        echo "  powershell.exe -NoProfile -ExecutionPolicy Bypass -File start-consul.ps1" >&2
         return 1
     fi
 
@@ -158,6 +169,205 @@ check_consul() {
     fi
 
     echo "Consul server leader: $leader"
+}
+
+check_consul_secrets() {
+    local key
+    local required_keys=(
+        "topsecret/argocd/github-oauth-secret.yaml"
+    )
+
+    for key in "${required_keys[@]}"; do
+        if ! curl --fail --silent --max-time 5 "$SECRETS_KV_URL/$key?keys" >/dev/null; then
+            echo "Required secret not found in Consul KV: $key" >&2
+            echo "Upload it, e.g.: curl -X PUT --data-binary @<file> $SECRETS_KV_URL/$key" >&2
+            echo "or restore a backup: $0 --restore-secrets <file>" >&2
+            return 1
+        fi
+    done
+
+    if ! curl --fail --silent --max-time 5 "$SECRETS_KV_URL/topsecret/sealed-secrets/tls.key?keys" >/dev/null; then
+        echo "Sealed Secrets key not found in Consul; a new one will be generated and all secrets re-sealed."
+    fi
+
+    if ! curl --fail --silent --max-time 5 "$SECRETS_KV_URL/topsecret/root-ca/tls.key?keys" >/dev/null; then
+        echo "Root CA not found in Consul; a new one will be generated (run install-root-ca.sh after the build)."
+    fi
+
+    echo "Consul secrets (topsecret/): OK"
+}
+
+read_backup_password() {
+    local confirm="$1"
+    local password_repeat
+
+    read -r -s -p "Backup password: " BACKUP_PASSWORD
+    echo ""
+
+    if [ -z "$BACKUP_PASSWORD" ]; then
+        echo "Password must not be empty." >&2
+        return 1
+    fi
+
+    if [ "$confirm" = "confirm" ]; then
+        read -r -s -p "Repeat password: " password_repeat
+        echo ""
+        if [ "$BACKUP_PASSWORD" != "$password_repeat" ]; then
+            echo "Passwords do not match." >&2
+            return 1
+        fi
+    fi
+
+    export BACKUP_PASSWORD
+}
+
+backup_secrets() {
+    local target="${1:-$HOME/mate-lab-topsecret-$(date +%Y%m%d-%H%M%S).enc}"
+    local export_json
+
+    echo "================================="
+    echo "BACKUP SECRETS (Consul topsecret/)"
+    echo "================================="
+
+    if [ -e "$target" ]; then
+        echo "Target file already exists: $target" >&2
+        return 1
+    fi
+
+    export_json="$(CONSUL_HTTP_ADDR=127.0.0.1:8500 consul kv export "$SECRETS_PREFIX")"
+    if [ -z "$export_json" ] || [ "$export_json" = "[]" ]; then
+        echo "Consul KV prefix '$SECRETS_PREFIX' is empty; nothing to back up." >&2
+        return 1
+    fi
+
+    read_backup_password confirm
+
+    printf '%s' "$export_json" | \
+        openssl enc -aes-256-cbc -pbkdf2 -iter 600000 -salt -pass env:BACKUP_PASSWORD -out "$target"
+
+    # Verify the backup decrypts back to the exported data before reporting success
+    if [ "$(openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -pass env:BACKUP_PASSWORD -in "$target")" != "$export_json" ]; then
+        echo "Backup verification failed: $target" >&2
+        return 1
+    fi
+
+    unset BACKUP_PASSWORD
+    echo "Encrypted backup written and verified: $target"
+    echo "Store it outside this host (cloud drive, USB, password manager)."
+}
+
+restore_secrets() {
+    local source_file="$1"
+    local import_json
+
+    echo "================================="
+    echo "RESTORE SECRETS (Consul topsecret/)"
+    echo "================================="
+
+    if [ -z "$source_file" ] || [ ! -f "$source_file" ]; then
+        echo "Usage: $0 --restore-secrets <file>" >&2
+        return 1
+    fi
+
+    read_backup_password
+
+    if ! import_json="$(openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -pass env:BACKUP_PASSWORD -in "$source_file" 2>/dev/null)"; then
+        echo "Unable to decrypt $source_file (wrong password or corrupted file)." >&2
+        return 1
+    fi
+    unset BACKUP_PASSWORD
+
+    confirm_destructive_operation "This overwrites keys under Consul '$SECRETS_PREFIX' with the backup content. Continue? Type YES:" || exit 1
+
+    printf '%s' "$import_json" | CONSUL_HTTP_ADDR=127.0.0.1:8500 consul kv import -
+    echo "Secrets restored into Consul KV prefix: $SECRETS_PREFIX"
+}
+
+# Clean Secret manifest rebuilt from a live Secret: drops server-side metadata and the
+# Argo CD tracking label, keeps name, namespace, labels, type and data.
+# $k / $v are go-template variables for kubectl, not shell variables, so single quotes are intended.
+# shellcheck disable=SC2016
+SECRET_MANIFEST_TEMPLATE='apiVersion: v1
+kind: Secret
+metadata:
+  name: {{.metadata.name}}
+  namespace: {{.metadata.namespace}}
+{{- if .metadata.labels}}
+  labels:
+{{- range $k, $v := .metadata.labels}}{{if ne $k "app.kubernetes.io/instance"}}
+    {{$k}}: {{printf "%q" $v}}{{end}}{{end}}
+{{- end}}
+type: {{.type}}
+data:
+{{- range $k, $v := .data}}
+  {{$k}}: {{$v}}
+{{- end}}
+'
+
+recover_secret_to_consul() {
+    local namespace="$1"
+    local name="$2"
+    local key="$3"
+    local manifest
+
+    if curl --fail --silent --max-time 5 "$SECRETS_KV_URL/$key?keys" >/dev/null; then
+        echo "Already in Consul, skipped: $key"
+        return 0
+    fi
+
+    if ! manifest="$(kubectl --kubeconfig "$KUBECONFIG_FILE" get secret -n "$namespace" "$name" \
+        -o go-template="$SECRET_MANIFEST_TEMPLATE" 2>/dev/null)"; then
+        echo "Secret $namespace/$name not found in the cluster; recreate $key manually." >&2
+        return 1
+    fi
+
+    printf '%s\n' "$manifest" | \
+        curl --fail --silent --show-error --max-time 5 -X PUT --data-binary @- "$SECRETS_KV_URL/$key" >/dev/null
+    echo "Recovered from cluster: $namespace/$name -> $key"
+}
+
+recover_secrets() {
+    local failed=0
+    local sealed_file
+    local app
+    local ref
+    local namespace
+    local name
+
+    echo "================================="
+    echo "RECOVER SECRETS FROM THE CLUSTER"
+    echo "================================="
+    echo "Only keys missing in Consul '$SECRETS_PREFIX' are written."
+    echo ""
+
+    bash "$BOOTSTRAP_DIR/03-sealed-secrets/init-key.sh" || failed=1
+    bash "$BOOTSTRAP_DIR/02-certificates/init-root-ca.sh" || failed=1
+
+    recover_secret_to_consul argocd argocd-github-oauth-secret "topsecret/argocd/github-oauth-secret.yaml" || failed=1
+
+    # Every app SealedSecret committed to Git points to the live Secret holding its plaintext
+    for sealed_file in "$ROOT_DIR"/03-apps/*/sealed-*-secret.yaml; do
+        [ -f "$sealed_file" ] || continue
+        app="$(basename "$(dirname "$sealed_file")")"
+
+        if ! ref="$(kubectl --kubeconfig "$KUBECONFIG_FILE" get -f "$sealed_file" \
+            -o jsonpath='{.metadata.namespace} {.metadata.name}' 2>/dev/null)"; then
+            echo "SealedSecret from $sealed_file not found in the cluster; recreate topsecret/apps/$app.yaml manually." >&2
+            failed=1
+            continue
+        fi
+
+        read -r namespace name <<< "$ref"
+        recover_secret_to_consul "$namespace" "$name" "topsecret/apps/$app.yaml" || failed=1
+    done
+
+    echo ""
+    if [ "$failed" -ne 0 ]; then
+        echo "Some secrets could not be recovered; see the messages above and README (Disaster recovery)." >&2
+        return 1
+    fi
+
+    echo "All secrets are present in Consul. Create a backup now: $0 --backup-secrets"
 }
 
 delete_consul_terraform_states() {
@@ -240,13 +450,14 @@ check_prerequisites() {
 
     case "$mode" in
         --build|--rebuild)
-            require_commands git multipass terraform kubectl powershell.exe cygpath find rm sed tail cut grep sort curl
+            require_commands git multipass terraform kubectl openssl base64 powershell.exe cygpath find rm sed tail cut grep sort curl
             check_project_layout
             resolve_gitops_source
             check_minimum_version multipass "$MIN_MULTIPASS_VERSION"
             check_minimum_version terraform "$MIN_TERRAFORM_VERSION"
             check_multipass_network
             check_consul
+            check_consul_secrets
             ;;
         --destroy)
             require_commands multipass find rm sed tail cut grep curl
@@ -259,6 +470,18 @@ check_prerequisites() {
         --clean)
             require_commands find rm curl
             check_consul
+            ;;
+        --backup-secrets|--restore-secrets)
+            require_commands consul openssl curl
+            check_consul
+            ;;
+        --recover-secrets)
+            require_commands kubectl openssl base64 curl
+            check_consul
+            if ! kubectl --kubeconfig "$KUBECONFIG_FILE" --request-timeout=5s get namespace kube-system -o name >/dev/null 2>&1; then
+                echo "Kubernetes API is not reachable via $KUBECONFIG_FILE; recovery needs a running cluster." >&2
+                return 1
+            fi
             ;;
         *)
             echo "No prerequisite checks are defined for '$mode'." >&2
@@ -542,9 +765,24 @@ case "$1" in
         cluster_clean_terraform
         ;;
 
+    --backup-secrets)
+        check_prerequisites --backup-secrets
+        backup_secrets "${2:-}"
+        ;;
+
+    --restore-secrets)
+        check_prerequisites --restore-secrets
+        restore_secrets "${2:-}"
+        ;;
+
+    --recover-secrets)
+        check_prerequisites --recover-secrets
+        recover_secrets
+        ;;
+
     --preflight)
         if [ "$#" -gt 2 ]; then
-            echo "Usage: $0 --preflight [--build|--rebuild|--destroy|--clean]" >&2
+            echo "Usage: $0 --preflight [--build|--rebuild|--destroy|--clean|--backup-secrets|--restore-secrets|--recover-secrets]" >&2
             exit 1
         fi
 
