@@ -1,4 +1,8 @@
 fullnameOverride: sealed-secrets-controller
 
+# Key pair is provided from the backup in topsecret/; disable automatic rotation
+# so no new, unbacked-up keys are generated inside the cluster.
+keyrenewperiod: "0"
+
 controller:
   createRbac: true

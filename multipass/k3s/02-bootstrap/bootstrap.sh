@@ -23,6 +23,13 @@ for dir in "${DIRS[@]}"; do
 
     cd "$dir"
 
+    # Layer-specific preparation (e.g. persistent keys in Consul) that must exist before planning
+    for init_script in init-*.sh; do
+        if [ -f "$init_script" ]; then
+            bash "./$init_script"
+        fi
+    done
+
     terraform init -upgrade
 
     echo "================================="

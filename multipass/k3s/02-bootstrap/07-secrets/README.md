@@ -4,113 +4,86 @@ This module automates the management of Kubernetes secrets using **Bitnami Seale
 
 ## Purpose
 
-The module converts plain Kubernetes `Secret` manifests into encrypted `SealedSecret` resources that are safe to store in Git. When a secret changes, Terraform regenerates the corresponding Sealed Secret and publishes it so Argo CD can synchronize it.
+The module converts plain Kubernetes `Secret` manifests stored in Consul KV into encrypted `SealedSecret` resources that are safe to store in Git. A secret is re-sealed only when its plaintext or the sealing key changes, so a regular cluster rebuild produces no Git commits.
 
 ## What this module does
 
-- Discovers plain Secret manifests in the `topsecret` directory
-- Encrypts each Secret using `kubeseal`
-- Generates a corresponding `SealedSecret` for each application
+- Reads plain Secret manifests from Consul KV prefix `topsecret/apps/`
+- Reads the persistent Sealed Secrets key pair from `topsecret/sealed-secrets/`
+- Compares a keyed hash (`sha256(private key + plaintext)`) with the `mate-lab/source-hash` annotation of the committed `SealedSecret`
+- Re-seals offline with `kubeseal --cert` only the secrets whose hash differs (changed plaintext, new key, or missing file)
 - Stores generated manifests under `03-apps/<application>/`
-- Automatically commits and pushes only the generated Sealed Secrets to Git
-- Regenerates Sealed Secrets only when the source Secret changes
+- Commits and pushes only the re-sealed files
 
-Git publication is skipped when there are no plaintext inputs or no generated changes. Before
-publishing, the current branch must be synchronized with its upstream. Other staged files are not
-included in the Sealed Secret commit.
+Before publishing, the current branch must be synchronized with its upstream. Other staged files are not included in the Sealed Secret commit.
 
 ## Directory Structure
 
-### Input
+### Input (Consul KV)
 
 ```text
 topsecret/
-├── plain-argocd-secret.yaml
-├── plain-dex-secret.yaml
-└── ...
+├── sealed-secrets/
+│   ├── tls.crt          # Sealed Secrets controller key pair (init-key.sh)
+│   └── tls.key
+├── argocd/
+│   └── github-oauth-secret.yaml   # used by 04-argocd
+└── apps/
+    ├── dex.yaml
+    ├── headlamp.yaml
+    └── <app>.yaml
 ```
 
-### Output
+### Output (Git)
 
 ```text
 03-apps/
-├── argocd/
-│   └── sealed-argocd-secret.yaml
 ├── dex/
 │   └── sealed-dex-secret.yaml
+├── headlamp/
+│   └── sealed-headlamp-secret.yaml
 └── ...
 ```
 
-## Workflow
+## Adding or Changing a Secret
 
-```text
-Plain Secret
-      │
-      ▼
-kubeseal
-      │
-      ▼
-SealedSecret
-      │
-      ▼
-Git Commit
-      │
-      ▼
-Git Push
-      │
-      ▼
-Argo CD
-      │
-      ▼
-Kubernetes Secret
+Start from a template in `templates/`, fill in the values outside the repository, and upload it:
+
+```bash
+curl -X PUT --data-binary @dex-secret.yaml http://127.0.0.1:8500/v1/kv/topsecret/apps/dex.yaml
+```
+
+The next `main_bootstrap.sh --build` / `--rebuild` (or `terraform apply` in this module) re-seals it.
+
+## Backup
+
+The Consul container runs on the same host as the cluster. Keep an encrypted copy elsewhere:
+
+```bash
+./main_bootstrap.sh --backup-secrets
+./main_bootstrap.sh --restore-secrets ~/mate-lab-topsecret-<date>.enc
 ```
 
 ## Requirements
 
-This module assumes that:
-
-- Sealed Secrets is already installed in the cluster
-- `kubeseal` is installed locally
-- Git is installed and configured
-- The local repository has permission to push to the remote repository
+- Consul KV reachable at `http://127.0.0.1:8500` with the `topsecret/` prefix populated
+- `kubeseal` and `kubectl` installed locally (sealing runs offline, no cluster access needed)
+- Git configured with permission to push to the remote repository
 
 ## Terraform Resources
 
 | Resource | Description |
 |----------|-------------|
-| `terraform_data.seal_secret` | Generates Sealed Secrets using `kubeseal` |
-| `terraform_data.git_commit_sealed_secrets` | Commits and pushes updated Sealed Secrets |
-
-## Files
-
-| File | Description |
-|------|-------------|
-| `main.tf` | Discovers, seals, commits, and pushes Kubernetes secrets |
-
-## Usage
-
-```bash
-terraform init
-terraform apply
-```
+| `data.consul_key_prefix.app_secrets` | Reads plain Secret manifests from `topsecret/apps/` |
+| `data.consul_keys.sealing` | Reads the Sealed Secrets key pair |
+| `terraform_data.seal_secret` | Re-seals stale secrets using `kubeseal` |
+| `terraform_data.git_commit_sealed_secrets` | Commits and pushes re-sealed secrets |
 
 ## Outputs
 
-The module provides information about:
-
-- Source-to-target secret mapping
-- Generated Sealed Secret files
-- Git commit status
-
-## Result
-
-After this module completes:
-
-- Plain secrets remain outside the GitOps application directories.
-- Encrypted `SealedSecret` manifests are stored in the Git repository.
-- Updated secrets are automatically committed and pushed.
-- Argo CD detects the Git changes and synchronizes the updated secrets to the cluster.
+- `sealed_secret_mapping` - Consul source to Git target mapping
+- `resealed_secrets` - secrets re-sealed in this run
 
 ## Security
 
-Only encrypted `SealedSecret` manifests are stored in the Git repository. Plain Secret manifests remain in the local `topsecret` directory and should never be committed to source control.
+Only encrypted `SealedSecret` manifests are stored in Git. Plaintext manifests and the private key live in Consul KV (local, no ACL) and in the encrypted backup file. The hash annotation includes the private key, so it reveals nothing about the plaintext.

@@ -27,3 +27,6 @@ site/
 # Python cache
 __pycache__/
 *.pyc
+
+# Encrypted secrets backups (main_bootstrap.sh --backup-secrets)
+*.enc
