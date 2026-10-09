@@ -19,6 +19,7 @@ GITOPS_REPO_URL=""
 SECRETS_KV_URL="http://127.0.0.1:8500/v1/kv"
 SECRETS_PREFIX="topsecret/"
 KUBECONFIG_FILE="$HOME/.kube/config.multipass.k3s"
+DRY_RUN=false
 
 show_usage() {
     echo ""
@@ -47,6 +48,14 @@ show_usage() {
     echo "  - Ask for confirmation"
     echo "  - Delete and purge only k3s-* Multipass VMs"
     echo "  - Remove local Terraform cache/state and Consul KV prefix terraform/"
+    echo ""
+
+    echo "$0 <--build|--rebuild|--destroy> --dry-run"
+    echo "  Preview only, nothing is changed and no confirmation is asked:"
+    echo "  - --build: terraform plan (instead of apply) for 01-infra and every 02-bootstrap layer"
+    echo "  - --rebuild: what would be deleted, plus the 01-infra plan from an empty state"
+    echo "  - --destroy: the VMs, Terraform files and Consul keys that would be deleted"
+    echo "  - Preflight checks still run; init-*.sh scripts are skipped (they write to Consul)"
     echo ""
 
     echo "$0 --clean"
@@ -649,6 +658,133 @@ bootstrap_cluster() {
     )
 }
 
+# terraform init that prints its (long) output only when it fails.
+terraform_init_quiet() {
+    local out
+
+    if ! out="$(terraform init -input=false -no-color 2>&1)"; then
+        printf '%s\n' "$out" >&2
+        return 1
+    fi
+}
+
+# Dry run counterpart of terraform_apply. Returns terraform's -detailed-exitcode:
+# 0 = no changes, 2 = changes pending, 1 = error.
+terraform_plan() {
+    local DIR=$1
+    local rc=0
+
+    echo "================================="
+    echo "Terraform plan (dry run): $DIR"
+    echo "================================="
+
+    (cd "$DIR" && terraform_init_quiet && terraform validate && terraform plan -input=false -detailed-exitcode) || rc=$?
+
+    case "$rc" in
+        0) echo ">> $(basename "$DIR"): no changes" ;;
+        2) echo ">> $(basename "$DIR"): changes pending (see the plan above)" ;;
+        *) echo ">> $(basename "$DIR"): ERROR" >&2 ;;
+    esac
+
+    return "$rc"
+}
+
+# --build --dry-run: plan 01-infra and every 02-bootstrap layer against the current state.
+plan_cluster() {
+    local infra_rc=0
+    local bootstrap_rc=0
+
+    echo "*** DRY RUN: terraform plan only, nothing is applied ***"
+
+    configure_terraform_helm_environment
+    terraform_plan "$INFRA_DIR" || infra_rc=$?
+
+    echo "================================="
+    echo "Planning Kubernetes bootstrap"
+    echo "================================="
+
+    (
+        export TF_VAR_git_revision="$GITOPS_REVISION"
+        export TF_VAR_git_repo_url="$GITOPS_REPO_URL"
+        export DRY_RUN=true
+        cd "$BOOTSTRAP_DIR"
+        ./bootstrap.sh
+    ) || bootstrap_rc=$?
+
+    echo ""
+    case "$infra_rc" in
+        0) echo "01-infra: no changes" ;;
+        2) echo "01-infra: changes pending" ;;
+        *) echo "01-infra: ERROR" ;;
+    esac
+    echo "Dry run finished. No changes were made."
+
+    if [ "$infra_rc" -eq 1 ] || [ "$bootstrap_rc" -ne 0 ]; then
+        return 1
+    fi
+}
+
+# --rebuild/--destroy --dry-run: list what the real command would delete, delete nothing.
+preview_removals() {
+    local instances
+    local state_keys
+
+    echo "Would delete and purge these Multipass instances:"
+    instances="$(get_k3s_instances)"
+    if [ -n "$instances" ]; then
+        while IFS= read -r vm; do
+            printf '  - %s\n' "$vm"
+        done <<< "$instances"
+    else
+        echo "  (none)"
+    fi
+
+    echo ""
+    echo "Would remove these Terraform directories and local state files:"
+    find "$ROOT_DIR" -type d -name ".terraform" -prune -print | sed 's/^/  - /'
+    find "$ROOT_DIR" -type f \( -name "terraform.tfstate" -o -name "terraform.tfstate.backup" \) -not -path '*/.terraform/*' -print | sed 's/^/  - /'
+
+    echo ""
+    echo "Would remove these Consul KV keys (Terraform state):"
+    state_keys="$(curl --fail --silent --max-time 5 "$SECRETS_KV_URL/terraform/?keys" | tr ',' '\n' | tr -d '[]"' || true)"
+    if [ -n "$state_keys" ]; then
+        printf '%s\n' "$state_keys" | grep -c . | sed 's/^/  (total keys: /; s/$/)/'
+        printf '%s\n' "$state_keys" | grep 'terraform.tfstate$' | sed 's/^/  - /'
+    else
+        echo "  (none)"
+    fi
+
+    echo ""
+    echo "Kept: Consul KV $SECRETS_PREFIX (keys, root CA and secrets)."
+}
+
+# --rebuild --dry-run: after the removal, 01-infra starts from an empty state. Plan it against a
+# throw-away state file and data directory so neither the real backend nor .terraform is touched.
+plan_infra_from_scratch() {
+    local scratch
+    local rc=0
+
+    echo "================================="
+    echo "Terraform plan from an empty state: 01-infra"
+    echo "================================="
+
+    # A copy of 01-infra without backend.tf: the local backend starts with an empty state
+    scratch="$(mktemp -d)"
+    cp "$INFRA_DIR"/*.tf "$INFRA_DIR"/.terraform.lock.hcl "$scratch/"
+    rm -f -- "$scratch/backend.tf"
+
+    (
+        cd "$scratch"
+        terraform_init_quiet && terraform validate && terraform plan -input=false -lock=false
+    ) || rc=$?
+
+    if [ -n "$scratch" ]; then
+        rm -rf -- "$scratch"
+    fi
+
+    return "$rc"
+}
+
 rebuild_cluster() {
 
     echo "================================="
@@ -681,6 +817,19 @@ rebuild_cluster() {
     echo "   - Kubernetes bootstrap"
 
     echo ""
+
+    if [ "$DRY_RUN" = true ]; then
+        echo "*** DRY RUN: nothing is deleted or created ***"
+        echo ""
+        preview_removals
+        echo ""
+        plan_infra_from_scratch
+        echo ""
+        echo "02-bootstrap is not planned: its layers need the cluster that the rebuild creates,"
+        echo "so after the removal every one of them is created from scratch."
+        echo "Dry run finished. No changes were made."
+        return 0
+    fi
 
     confirm_destructive_operation "This deletes k3s-* VMs and local/Consul Terraform state before recreating the cluster. Continue? Type YES:" || exit 1
 
@@ -725,6 +874,16 @@ destroy_cluster() {
 
     echo ""
 
+    if [ "$DRY_RUN" = true ]; then
+        echo "*** DRY RUN: nothing is deleted ***"
+        echo "(--destroy removes the VMs with multipass and clears Terraform state; it runs no terraform apply.)"
+        echo ""
+        preview_removals
+        echo ""
+        echo "Dry run finished. No changes were made."
+        return 0
+    fi
+
     confirm_destructive_operation "This deletes k3s-* VMs and local/Consul Terraform state. Continue? Type YES:" || exit 1
 
     delete_k3s_instances
@@ -742,12 +901,37 @@ cluster_clean_terraform()
     clean_terraform
 }
 
-case "$1" in
+# --dry-run is a modifier (any position): preview/plan only, for --build, --rebuild and --destroy
+ARGS=()
+for arg in "$@"; do
+    if [ "$arg" = "--dry-run" ]; then
+        DRY_RUN=true
+    else
+        ARGS+=("$arg")
+    fi
+done
+set -- "${ARGS[@]}"
+
+if [ "$DRY_RUN" = true ]; then
+    case "${1:-}" in
+        --build|--rebuild|--destroy) ;;
+        *)
+            echo "--dry-run can only be combined with --build, --rebuild or --destroy." >&2
+            exit 1
+            ;;
+    esac
+fi
+
+case "${1:-}" in
 
     --build)
         check_prerequisites --build
-        confirm_operation "Build K3s cluster and apply its configuration? Type YES to continue:" || exit 1
-        bootstrap_cluster
+        if [ "$DRY_RUN" = true ]; then
+            plan_cluster
+        else
+            confirm_operation "Build K3s cluster and apply its configuration? Type YES to continue:" || exit 1
+            bootstrap_cluster
+        fi
         ;;
 
     --rebuild)

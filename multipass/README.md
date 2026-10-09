@@ -132,6 +132,24 @@ cd kubernetes-mate-lab/multipass/k3s/
 
 The script verifies the generated public CA certificate and, after you type `YES`, imports it into the current Windows user's `Root` certificate store. Windows may show an additional trust warning. No administrator privileges are required, and the CA private key is never imported.
 
+## Dry Run
+
+`--build`, `--rebuild` and `--destroy` accept `--dry-run` (in any position). It changes nothing and asks for no confirmation; the preflight checks still run.
+
+```bash
+./main_bootstrap.sh --build --dry-run
+./main_bootstrap.sh --rebuild --dry-run
+./main_bootstrap.sh --destroy --dry-run
+```
+
+| Command | What it shows |
+|---------|---------------|
+| `--build --dry-run` | `terraform plan` instead of `apply` for `01-infra` and every `02-bootstrap` layer, then a summary per layer: `no changes`, `changes pending` or `ERROR`. A failing layer does not stop the others; the exit code is 1 if any layer failed. |
+| `--rebuild --dry-run` | The VMs, Terraform directories and Consul state keys that would be deleted (`topsecret/` is kept), plus the `01-infra` plan from an empty state. `02-bootstrap` is not planned: it needs the cluster that the rebuild creates. |
+| `--destroy --dry-run` | The same list of deletions. `--destroy` runs no `terraform apply` (it deletes the VMs with `multipass`), so there is no plan to show. |
+
+Run `--build --dry-run` on a running cluster before a real `--build` to see whether anything would change. `init-*.sh` scripts are skipped, because they create missing keys in Consul; on a cluster that does not exist yet the `02-bootstrap` layers are expected to fail.
+
 ## Destroy K3s Cluster
 
 ### Task 1 - Destroy the cluster

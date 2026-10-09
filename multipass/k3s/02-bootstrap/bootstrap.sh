@@ -2,6 +2,9 @@
 
 set -e
 
+# DRY_RUN=true (set by main_bootstrap.sh --dry-run): terraform plan for every layer, nothing is applied.
+DRY_RUN="${DRY_RUN:-false}"
+
 DIRS=(
   "00-coredns"
   "01-cert-manager"
@@ -14,6 +17,59 @@ DIRS=(
   "08-trust-manager"
   "09-oidc"
 )
+
+PLAN_RESULTS=()
+PLAN_FAILED=0
+
+# terraform init that prints its (long) output only when it fails.
+terraform_init_quiet() {
+    local out
+
+    if ! out="$(terraform init -input=false -no-color 2>&1)"; then
+        printf '%s\n' "$out" >&2
+        return 1
+    fi
+}
+
+# A failing layer must not stop the remaining ones. terraform -detailed-exitcode: 0 = no changes,
+# 2 = changes pending, 1 = error. The subshell keeps the working directory untouched.
+plan_layer() {
+    local dir="$1"
+    local rc=0
+
+    echo "================================="
+    echo "Terraform plan (dry run): $dir"
+    echo "================================="
+
+    (cd "$dir" && terraform_init_quiet && terraform validate && terraform plan -input=false -detailed-exitcode) || rc=$?
+
+    case "$rc" in
+        0) PLAN_RESULTS+=("$dir: no changes") ;;
+        2) PLAN_RESULTS+=("$dir: changes pending") ;;
+        *) PLAN_RESULTS+=("$dir: ERROR"); PLAN_FAILED=1 ;;
+    esac
+}
+
+if [ "$DRY_RUN" = true ]; then
+    echo "Skipping init-*.sh scripts in dry run (they write missing keys to Consul):"
+    ls -1 ./*/init-*.sh 2>/dev/null | sed 's|^\./|  |' || true
+
+    for dir in "${DIRS[@]}"; do
+        plan_layer "$dir"
+    done
+
+    echo "================================="
+    echo "Dry run summary (02-bootstrap)"
+    echo "================================="
+    printf '  %s\n' "${PLAN_RESULTS[@]}"
+
+    if [ "$PLAN_FAILED" -ne 0 ]; then
+        echo "Some layers failed to plan. The layers need a running cluster and the Consul secrets" >&2
+        echo "(topsecret/), so errors are expected before the first build." >&2
+    fi
+
+    exit "$PLAN_FAILED"
+fi
 
 for dir in "${DIRS[@]}"; do
 
