@@ -135,10 +135,58 @@ resource "helm_release" "argocd" {
   version          = "10.2.1"
   values = [
     yamlencode({
+      # Requests tell the scheduler how much each component needs (measured with kubectl top
+      # plus headroom); memory limits cap leaks. No CPU limits: CPU shortage only throttles.
+      controller = {
+        resources = {
+          requests = { cpu = "100m", memory = "256Mi" }
+          limits   = { memory = "512Mi" }
+        }
+      }
+
+      repoServer = {
+        resources = {
+          requests = { cpu = "50m", memory = "128Mi" }
+          limits   = { memory = "384Mi" }
+        }
+      }
+
       server = {
         extraArgs = [
           "--insecure"
         ]
+        resources = {
+          requests = { cpu = "20m", memory = "64Mi" }
+          limits   = { memory = "128Mi" }
+        }
+      }
+
+      dex = {
+        resources = {
+          requests = { cpu = "10m", memory = "64Mi" }
+          limits   = { memory = "128Mi" }
+        }
+      }
+
+      redis = {
+        resources = {
+          requests = { cpu = "10m", memory = "32Mi" }
+          limits   = { memory = "64Mi" }
+        }
+      }
+
+      applicationSet = {
+        resources = {
+          requests = { cpu = "10m", memory = "48Mi" }
+          limits   = { memory = "128Mi" }
+        }
+      }
+
+      notifications = {
+        resources = {
+          requests = { cpu = "10m", memory = "48Mi" }
+          limits   = { memory = "96Mi" }
+        }
       }
 
       configs = {
