@@ -18,6 +18,15 @@ DIRS=(
   "09-oidc"
 )
 
+# Orange background for pending changes (only when writing to a terminal)
+if [ -t 1 ]; then
+    ORANGE_BG='\033[48;5;208m\033[30m'
+    RESET='\033[0m'
+else
+    ORANGE_BG=""
+    RESET=""
+fi
+
 PLAN_RESULTS=()
 PLAN_FAILED=0
 
@@ -45,7 +54,7 @@ plan_layer() {
 
     case "$rc" in
         0) PLAN_RESULTS+=("$dir: no changes") ;;
-        2) PLAN_RESULTS+=("$dir: changes pending") ;;
+        2) PLAN_RESULTS+=("$dir: ${ORANGE_BG}changes pending${RESET}") ;;
         *) PLAN_RESULTS+=("$dir: ERROR"); PLAN_FAILED=1 ;;
     esac
 }
@@ -61,7 +70,7 @@ if [ "$DRY_RUN" = true ]; then
     echo "================================="
     echo "Dry run summary (02-bootstrap)"
     echo "================================="
-    printf '  %s\n' "${PLAN_RESULTS[@]}"
+    printf '  %b\n' "${PLAN_RESULTS[@]}"
 
     if [ "$PLAN_FAILED" -ne 0 ]; then
         echo "Some layers failed to plan. The layers need a running cluster and the Consul secrets" >&2

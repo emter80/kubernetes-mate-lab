@@ -14,6 +14,7 @@ MIN_TERRAFORM_VERSION="1.15.8"
 RED_BG='\033[41m'
 WHITE='\033[97m'
 RESET='\033[0m'
+ORANGE_BG='\033[48;5;208m\033[30m'
 GITOPS_REVISION=""
 GITOPS_REPO_URL=""
 SECRETS_KV_URL="http://127.0.0.1:8500/v1/kv"
@@ -682,7 +683,7 @@ terraform_plan() {
 
     case "$rc" in
         0) echo ">> $(basename "$DIR"): no changes" ;;
-        2) echo ">> $(basename "$DIR"): changes pending (see the plan above)" ;;
+        2) echo -e ">> $(basename "$DIR"): ${ORANGE_BG}changes pending${RESET} (see the plan above)" ;;
         *) echo ">> $(basename "$DIR"): ERROR" >&2 ;;
     esac
 
@@ -714,7 +715,7 @@ plan_cluster() {
     echo ""
     case "$infra_rc" in
         0) echo "01-infra: no changes" ;;
-        2) echo "01-infra: changes pending" ;;
+        2) echo -e "01-infra: ${ORANGE_BG}changes pending${RESET}" ;;
         *) echo "01-infra: ERROR" ;;
     esac
     echo "Dry run finished. No changes were made."
