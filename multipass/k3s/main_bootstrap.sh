@@ -11,6 +11,7 @@ INFRA_DIR="$ROOT_DIR/01-infra"
 BOOTSTRAP_DIR="$ROOT_DIR/02-bootstrap"
 MIN_MULTIPASS_VERSION="1.16.3"
 MIN_TERRAFORM_VERSION="1.15.8"
+GREEN_BG='\033[42m'
 RED_BG='\033[41m'
 WHITE='\033[97m'
 RESET='\033[0m'
@@ -21,11 +22,8 @@ SECRETS_PREFIX="topsecret/"
 KUBECONFIG_FILE="$HOME/.kube/config.multipass.k3s"
 
 show_usage() {
-    echo ""
-    echo "!! COMMANDS WITH RED BACKGROUND MAY DESTROY EXISTING RESOURCES !!"
     echo "Usage:"
-    echo ""
-    echo -e "${RED_BG}${WHITE} $0 --build ${RESET}"
+    echo -e "${GREEN_BG}${WHITE} $0 --build ${RESET} "
     echo "  Build cluster from scratch"
     echo "  - Refuse to run if k3s-* Multipass instances already exist (use --rebuild)"
     echo "  - Ask for confirmation (type YES)"
