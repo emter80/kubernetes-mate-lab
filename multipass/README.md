@@ -120,6 +120,8 @@ cd kubernetes-mate-lab/multipass/k3s/
 ./main_bootstrap.sh --build
 ```
 
+`--build` creates a cluster from scratch and refuses to run when `k3s-*` Multipass VMs already exist. To delete them and create the cluster again, use `./main_bootstrap.sh --rebuild`.
+
 ### Task 2 - Trust the cluster Root CA
 
 After the cluster bootstrap completes, run this from Git Bash in `multipass/k3s`:

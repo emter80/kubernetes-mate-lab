@@ -11,6 +11,7 @@ INFRA_DIR="$ROOT_DIR/01-infra"
 BOOTSTRAP_DIR="$ROOT_DIR/02-bootstrap"
 MIN_MULTIPASS_VERSION="1.16.3"
 MIN_TERRAFORM_VERSION="1.15.8"
+GREEN_BG='\033[42m'
 RED_BG='\033[41m'
 WHITE='\033[97m'
 RESET='\033[0m'
@@ -21,32 +22,31 @@ SECRETS_PREFIX="topsecret/"
 KUBECONFIG_FILE="$HOME/.kube/config.multipass.k3s"
 
 show_usage() {
-    echo ""
     echo "Usage:"
-    echo ""
-    echo "$0 --build"
-    echo "  K3s cluster build from scratch:"
-    echo "  - Ask for confirmation before applying changes"
-    echo "  - Apply Terraform infrastructure (01-infra)"
-    echo "  - Run Kubernetes bootstrap (02-bootstrap)"
-    echo ""
-
-    echo -e "${RED_BG}${WHITE}$0 --rebuild${RESET}"
-    echo "  Full K3s cluster rebuild:"
-    echo "  - Show current k3s-* Multipass instances"
-    echo "  - Ask for confirmation"
-    echo "  - Delete and purge only k3s-* Multipass VMs"
-    echo "  - Remove local Terraform cache/state and Consul KV prefix terraform/"
-    echo "  - Apply Terraform infrastructure (01-infra)"
-    echo "  - Run Kubernetes bootstrap (02-bootstrap)"
+    echo -e "${GREEN_BG}${WHITE} $0 --build ${RESET} "
+    echo "  Build cluster from scratch"
+    echo "  - Refuse to run if k3s-* Multipass instances already exist (use --rebuild)"
+    echo "  - Ask for confirmation (type YES)"
+    echo "  - Apply Terraform infrastructure: 01-infra"
+    echo "  - Run Kubernetes bootstrap: 02-bootstrap"
     echo ""
 
-    echo -e "${RED_BG}${WHITE}$0 --destroy${RESET}"
-    echo "  Full K3s cluster destroy:"
+    echo -e "${RED_BG}${WHITE} $0 --rebuild ${RESET}"
+    echo "  Full cluster rebuild"
     echo "  - Show current k3s-* Multipass instances"
-    echo "  - Ask for confirmation"
+    echo "  - Ask for confirmation (type YES)"
     echo "  - Delete and purge only k3s-* Multipass VMs"
-    echo "  - Remove local Terraform cache/state and Consul KV prefix terraform/"
+    echo "  - Remove local Terraform cache/state and Consul KV with prefix terraform/"
+    echo "  - Apply Terraform infrastructure: 01-infra"
+    echo "  - Run Kubernetes bootstrap: 02-bootstrap"
+    echo ""
+
+    echo -e "${RED_BG}${WHITE} $0 --destroy ${RESET}"
+    echo "  Full cluster destroy:"
+    echo "  - Show current k3s-* Multipass instances"
+    echo "  - Ask for confirmation (type YES)"
+    echo "  - Delete and purge only k3s-* Multipass VMs"
+    echo "  - Remove local Terraform cache/state and Consul KV with prefix terraform/"
     echo ""
 
     echo "$0 --clean"
@@ -540,6 +540,27 @@ get_k3s_instances() {
         grep '^k3s-' || true
 }
 
+# --build creates a cluster from scratch; with existing VMs Terraform would try to change or
+# replace them (for example after a cloud-init or line-ending change), so refuse and point to --rebuild.
+check_no_existing_cluster() {
+    local instances
+
+    instances="$(get_k3s_instances 2>/dev/null)"
+    if [ -z "$instances" ]; then
+        return 0
+    fi
+
+    echo "Refusing to run --build: k3s Multipass instances already exist:" >&2
+    while IFS= read -r vm; do
+        printf '  - %s\n' "$vm" >&2
+    done <<< "$instances"
+    echo "" >&2
+    echo "--build only creates a cluster from scratch and does not touch existing VMs safely." >&2
+    echo "To delete these VMs and create the cluster again, run:" >&2
+    echo "  $0 --rebuild" >&2
+    return 1
+}
+
 delete_k3s_instances() {
     echo "================================="
     echo "Searching k3s Multipass instances"
@@ -745,6 +766,7 @@ cluster_clean_terraform()
 case "$1" in
 
     --build)
+        check_no_existing_cluster || exit 1
         check_prerequisites --build
         confirm_operation "Build K3s cluster and apply its configuration? Type YES to continue:" || exit 1
         bootstrap_cluster
