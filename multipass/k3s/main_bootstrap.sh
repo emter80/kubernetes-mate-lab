@@ -729,6 +729,9 @@ plan_cluster() {
 preview_removals() {
     local instances
     local state_keys
+    local all_keys
+    local removed_count
+    local total_count
 
     echo "Would delete and purge these Multipass instances:"
     instances="$(get_k3s_instances)"
@@ -748,11 +751,12 @@ preview_removals() {
     echo ""
     echo "Would remove these Consul KV keys (Terraform state):"
     state_keys="$(curl --fail --silent --max-time 5 "$SECRETS_KV_URL/terraform/?keys" | tr ',' '\n' | tr -d '[]"' || true)"
-    if [ -n "$state_keys" ]; then
-        printf '%s\n' "$state_keys" | grep -c . | sed 's/^/  (total keys: /; s/$/)/'
-        printf '%s\n' "$state_keys" | grep 'terraform.tfstate$' | sed 's/^/  - /'
-    else
-        echo "  (none)"
+    all_keys="$(curl --fail --silent --max-time 5 "$SECRETS_KV_URL/?keys" | tr ',' '\n' | tr -d '[]"' || true)"
+    removed_count="$(printf '%s\n' "$state_keys" | grep -c . || true)"
+    total_count="$(printf '%s\n' "$all_keys" | grep -c . || true)"
+    echo "  to be removed: $removed_count (out of $total_count keys in Consul KV)"
+    if [ "$removed_count" -gt 0 ]; then
+        printf '%s\n' "$state_keys" | sed 's/^/  - /'
     fi
 
     echo ""
