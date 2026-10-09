@@ -285,6 +285,8 @@ restore_secrets() {
 
 # Clean Secret manifest rebuilt from a live Secret: drops server-side metadata and the
 # Argo CD tracking label, keeps name, namespace, labels, type and data.
+# $k / $v are go-template variables for kubectl, not shell variables, so single quotes are intended.
+# shellcheck disable=SC2016
 SECRET_MANIFEST_TEMPLATE='apiVersion: v1
 kind: Secret
 metadata:
