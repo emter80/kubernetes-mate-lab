@@ -12,5 +12,7 @@ spec:
     name: multipass-ca
     kind: ClusterIssuer
 
+  commonName: whoami.multipass.k3s
+
   dnsNames:
     - whoami.multipass.k3s

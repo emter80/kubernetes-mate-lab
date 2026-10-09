@@ -10,6 +10,7 @@ resource "kubernetes_manifest" "argocd_certificate" {
 
     spec = {
       secretName = "argocd-tls"
+      commonName = "argocd.multipass.k3s"
       dnsNames = [
         "argocd.multipass.k3s"
       ]

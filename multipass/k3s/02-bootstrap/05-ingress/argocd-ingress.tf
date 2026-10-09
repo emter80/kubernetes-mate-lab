@@ -16,7 +16,7 @@ resource "kubernetes_manifest" "argocd_ingressroute" {
       routes = [
         {
           match = "Host(`argocd.multipass.k3s`)"
-          kind = "Rule"
+          kind  = "Rule"
 
           services = [
             {
