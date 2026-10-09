@@ -148,7 +148,9 @@ The script verifies the generated public CA certificate and, after you type `YES
 | `--rebuild --dry-run` | The VMs, Terraform directories and Consul state keys that would be deleted (`topsecret/` is kept), plus the `01-infra` plan from an empty state. `02-bootstrap` is not planned: it needs the cluster that the rebuild creates. |
 | `--destroy --dry-run` | The same list of deletions. `--destroy` runs no `terraform apply` (it deletes the VMs with `multipass`), so there is no plan to show. |
 
-Run `--build --dry-run` on a running cluster before a real `--build` to see whether anything would change. `init-*.sh` scripts are skipped, because they create missing keys in Consul; on a cluster that does not exist yet the `02-bootstrap` layers are expected to fail.
+Run `--build --dry-run` on a running cluster before a real `--build` to see whether anything would change. `init-*.sh` scripts are skipped, because they create missing keys in Consul.
+
+**When the cluster does not exist** (the Kubernetes API is not reachable), `01-infra` is still planned for real, but the `02-bootstrap` layers cannot be: the kubernetes provider needs the API. Instead, every layer is listed from its declarations, in the order the build runs them: the `init-*.sh` script it would run, the data it reads, the resources it creates and how many `local-exec` commands run on your machine (these seal secrets, and commit and push them when they changed). It is not a real plan: counts are declared resources, so `for_each` and Consul-dependent ones can differ.
 
 ## Destroy K3s Cluster
 

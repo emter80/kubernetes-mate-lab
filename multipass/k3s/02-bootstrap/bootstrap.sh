@@ -59,12 +59,54 @@ plan_layer() {
     esac
 }
 
+# Used when there is no cluster to plan against (DRY_RUN_OUTLINE=true): the kubernetes/helm
+# providers cannot reach an API, so list what the layer would do from its declarations instead.
+outline_layer() {
+    local dir="$1"
+    local script
+    local resources
+    local count
+    local local_exec
+
+    echo "================================="
+    echo "Would create from scratch: $dir"
+    echo "================================="
+
+    for script in "$dir"/init-*.sh; do
+        if [ -f "$script" ]; then
+            echo "  run $(basename "$script"): $(sed -n '2p' "$script" | sed 's/^# *//')"
+        fi
+    done
+
+    grep -hoE '^data "[^"]+" "[^"]+"' "$dir"/*.tf | sed -E 's/^data "([^"]+)" "([^"]+)"/  read data.\1.\2/' || true
+
+    resources="$(grep -hoE '^resource "[^"]+" "[^"]+"' "$dir"/*.tf | sed -E 's/^resource "([^"]+)" "([^"]+)"/\1.\2/' || true)"
+    count="$(printf '%s\n' "$resources" | grep -c . || true)"
+    printf '%s\n' "$resources" | sed 's/^/  + /'
+
+    local_exec="$(grep -h 'provisioner "local-exec"' "$dir"/*.tf | grep -c . || true)"
+    if [ "$local_exec" -gt 0 ]; then
+        echo "  ($local_exec local-exec command(s) run on this machine, e.g. kubectl, kubeseal, git, multipass)"
+    fi
+
+    PLAN_RESULTS+=("$dir: ${ORANGE_BG}to be created${RESET} ($count resources)")
+}
+
 if [ "$DRY_RUN" = true ]; then
-    echo "Skipping init-*.sh scripts in dry run (they write missing keys to Consul):"
-    ls -1 ./*/init-*.sh 2>/dev/null | sed 's|^\./|  |' || true
+    if [ "${DRY_RUN_OUTLINE:-false}" = true ]; then
+        echo "No reachable cluster: showing what each layer would do from its declarations (not a real plan)."
+        echo "Resource counts are the declared resources; for_each/count and Consul-dependent ones can differ."
+    else
+        echo "Skipping init-*.sh scripts in dry run (they write missing keys to Consul):"
+        ls -1 ./*/init-*.sh 2>/dev/null | sed 's|^\./|  |' || true
+    fi
 
     for dir in "${DIRS[@]}"; do
-        plan_layer "$dir"
+        if [ "${DRY_RUN_OUTLINE:-false}" = true ]; then
+            outline_layer "$dir"
+        else
+            plan_layer "$dir"
+        fi
     done
 
     echo "================================="
@@ -73,8 +115,7 @@ if [ "$DRY_RUN" = true ]; then
     printf '  %b\n' "${PLAN_RESULTS[@]}"
 
     if [ "$PLAN_FAILED" -ne 0 ]; then
-        echo "Some layers failed to plan. The layers need a running cluster and the Consul secrets" >&2
-        echo "(topsecret/), so errors are expected before the first build." >&2
+        echo "Some layers failed to plan; see the errors above." >&2
     fi
 
     exit "$PLAN_FAILED"

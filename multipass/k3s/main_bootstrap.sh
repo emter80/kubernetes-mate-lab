@@ -53,7 +53,8 @@ show_usage() {
 
     echo "$0 <--build|--rebuild|--destroy> --dry-run"
     echo "  Preview only, nothing is changed and no confirmation is asked:"
-    echo "  - --build: terraform plan (instead of apply) for 01-infra and every 02-bootstrap layer"
+    echo "  - --build: terraform plan (instead of apply) for 01-infra and every 02-bootstrap layer;"
+    echo "    without a reachable cluster the layers are listed from their declarations instead"
     echo "  - --rebuild: what would be deleted, plus the 01-infra plan from an empty state"
     echo "  - --destroy: the VMs, Terraform files and Consul keys that would be deleted"
     echo "  - Preflight checks still run; init-*.sh scripts are skipped (they write to Consul)"
@@ -690,24 +691,42 @@ terraform_plan() {
     return "$rc"
 }
 
+cluster_reachable() {
+    kubectl --kubeconfig "$KUBECONFIG_FILE" --request-timeout=5s get namespace kube-system -o name >/dev/null 2>&1
+}
+
 # --build --dry-run: plan 01-infra and every 02-bootstrap layer against the current state.
+# Without a reachable cluster the 02-bootstrap layers cannot be planned (the kubernetes provider
+# needs the API), so they are outlined from their declarations instead.
 plan_cluster() {
     local infra_rc=0
     local bootstrap_rc=0
+    local outline=false
 
     echo "*** DRY RUN: terraform plan only, nothing is applied ***"
+
+    if ! cluster_reachable; then
+        outline=true
+        echo "Kubernetes API is not reachable via $KUBECONFIG_FILE: the cluster does not exist (yet)."
+        echo "01-infra is planned; 02-bootstrap layers are listed from their declarations."
+    fi
 
     configure_terraform_helm_environment
     terraform_plan "$INFRA_DIR" || infra_rc=$?
 
     echo "================================="
-    echo "Planning Kubernetes bootstrap"
+    if [ "$outline" = true ]; then
+        echo "Kubernetes bootstrap: steps after the cluster is created"
+    else
+        echo "Planning Kubernetes bootstrap"
+    fi
     echo "================================="
 
     (
         export TF_VAR_git_revision="$GITOPS_REVISION"
         export TF_VAR_git_repo_url="$GITOPS_REPO_URL"
         export DRY_RUN=true
+        export DRY_RUN_OUTLINE="$outline"
         cd "$BOOTSTRAP_DIR"
         ./bootstrap.sh
     ) || bootstrap_rc=$?
