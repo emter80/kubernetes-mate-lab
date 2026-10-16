@@ -47,7 +47,7 @@ Plain secrets and the Sealed Secrets key pair are stored in Consul KV under `top
 | `topsecret/argocd/github-oauth-secret.yaml` | Argo CD GitHub OAuth Secret manifest (required) |
 | `topsecret/apps/<app>.yaml` | Secret manifests sealed into `03-apps/<app>/sealed-<app>-secret.yaml` |
 
-Upload a secret (templates are in `02-bootstrap/07-secrets/templates/`):
+Upload a secret (the Argo CD template is in `02-bootstrap/04-argocd/templates/`, application templates are in `02-bootstrap/07-secrets/templates/`):
 
 ```bash
 curl -X PUT --data-binary @github-oauth-secret.yaml http://127.0.0.1:8500/v1/kv/topsecret/argocd/github-oauth-secret.yaml
@@ -94,7 +94,7 @@ It restores the Sealed Secrets key, the root CA (only if valid for more than a y
 2. Rotate the credentials that cannot be read back:
    - GitHub → Settings → Developer settings → OAuth Apps → **Generate a new client secret** for the Argo CD app and the Dex app.
    - Choose a new Dex ↔ Headlamp static client secret (the same value in both files).
-3. Fill in the templates from `02-bootstrap/07-secrets/templates/` outside the repository and upload them:
+3. Fill in the templates (`02-bootstrap/04-argocd/templates/` for Argo CD, `02-bootstrap/07-secrets/templates/` for applications) outside the repository and upload them:
 
    ```bash
    curl -X PUT --data-binary @argocd-github-oauth-secret.yaml http://127.0.0.1:8500/v1/kv/topsecret/argocd/github-oauth-secret.yaml
