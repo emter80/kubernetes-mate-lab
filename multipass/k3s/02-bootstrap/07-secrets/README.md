@@ -47,6 +47,8 @@ topsecret/
 
 ## Adding or Changing a Secret
 
+`templates/` contains application secrets only. The Argo CD GitHub OAuth secret is a platform secret handled by `../04-argocd/` (template in `../04-argocd/templates/`).
+
 Start from a template in `templates/`, fill in the values outside the repository, and upload it:
 
 ```bash
