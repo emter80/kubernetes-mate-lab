@@ -72,10 +72,11 @@ show_usage() {
 
     echo "$0 --add-secret <app>"
     echo "  Create and seal the secret of a new application (template-<app>-secret.yaml):"
-    echo "  - Every <secret> placeholder gets its own random value; the value is never printed"
+    echo "  - Every <generate> placeholder gets its own random value; the value is never printed"
+    echo "  - <secret> and other placeholders (<client_id>, ...) mean a value you must supply: the command refuses"
     echo "  - Writes Consul topsecret/apps/<app>.yaml only if it does not exist yet (the password stays stable)"
     echo "  - Runs 02-bootstrap/07-secrets: seals offline, then commits and pushes the SealedSecret"
-    echo "  - Needs a pushed, synchronized branch; templates with other placeholders must be filled manually"
+    echo "  - Needs a pushed, synchronized branch"
     echo ""
 
     echo "$0 --preflight [--build|--rebuild|--destroy|--clean|--backup-secrets|--restore-secrets|--recover-secrets|--add-secret]"
@@ -430,16 +431,19 @@ add_secret() {
     else
         manifest="$(cat "$template")"
 
-        # Each <secret> gets its own random value
-        while [[ "$manifest" == *"<secret>"* ]]; do
+        # Only <generate> may be filled with a random value. <secret> and any other
+        # placeholder stand for a real value (from GitHub, another system, ...) that
+        # only a person can supply.
+        while [[ "$manifest" == *"<generate>"* ]]; do
             value="$(openssl rand -hex 24)"
-            manifest="${manifest/<secret>/$value}"
+            manifest="${manifest/<generate>/$value}"
         done
         unset value
 
         if [[ "$manifest" =~ $placeholder_re ]]; then
-            echo "$template has placeholders that need real values (${BASH_REMATCH[0]}, ...)." >&2
-            echo "Fill them in a plain manifest and upload it: curl -X PUT --data-binary @<file> $SECRETS_KV_URL/$key" >&2
+            echo "$template needs a real value for ${BASH_REMATCH[0]} (and possibly other placeholders)." >&2
+            echo "Only <generate> is filled automatically. Fill the rest in a plain manifest and upload it:" >&2
+            echo "  curl -X PUT --data-binary @<file> $SECRETS_KV_URL/$key" >&2
             return 1
         fi
 

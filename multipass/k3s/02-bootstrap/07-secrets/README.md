@@ -47,18 +47,24 @@ topsecret/
 
 ## Adding a Secret Automatically
 
-For secrets that only need random values (for example a database password), use one command from `multipass/k3s`:
+Templates use two kinds of placeholders:
+
+| Placeholder | Meaning |
+|-------------|---------|
+| `<generate>` | A random value is acceptable (for example a database password). |
+| `<secret>`, `<client_id>`, ... | A real value that someone has to supply: taken from GitHub, or shared with another system such as an OIDC client secret that must match Dex. |
+
+For templates that contain only `<generate>`, use one command from `multipass/k3s`:
 
 ```bash
 ./main_bootstrap.sh --add-secret <app>
 ```
 
-It reads `templates/template-<app>-secret.yaml`, replaces every `<secret>` placeholder with its own random value, stores the result in Consul as `topsecret/apps/<app>.yaml`, and runs this module to seal, commit and push it. The values are never printed.
+It reads `templates/template-<app>-secret.yaml`, replaces every `<generate>` with its own random value, stores the result in Consul as `topsecret/apps/<app>.yaml`, and runs this module to seal, commit and push it. The values are never printed.
 
 - If the key already exists in Consul it is kept, so re-running the command never changes a password (important for data that was initialised with it, such as PostgreSQL).
-- Templates with other placeholders (such as `<client_id>`) need real values and must be uploaded manually, as described below.
+- If the template still contains `<secret>` or any other placeholder, the command refuses and nothing is written. Fill those secrets manually, as described below.
 - The branch must be pushed and synchronized with its upstream, because the module commits and pushes.
-- Do not use it for a value that must match another system (for example an OIDC client secret shared with Dex).
 
 ## Adding or Changing a Secret Manually
 
