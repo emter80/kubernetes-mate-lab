@@ -45,7 +45,45 @@ topsecret/
 └── ...
 ```
 
-## Adding or Changing a Secret
+## Naming Conventions (applications)
+
+Everything is derived from one name, `<app>`, which must equal the application's directory in `03-apps/`.
+
+| Item | Name | Example (`headlamp`) |
+|------|------|----------------------|
+| Template (in Git) | `02-bootstrap/07-secrets/templates/template-<app>-secret.yaml` | `template-headlamp-secret.yaml` |
+| Consul key | `topsecret/apps/<app>.yaml` | `topsecret/apps/headlamp.yaml` |
+| SealedSecret (in Git) | `03-apps/<app>/sealed-<app>-secret.yaml` | `sealed-headlamp-secret.yaml` |
+| Kubernetes `Secret` name | `<app>-<purpose>`, referenced by the application's manifests | `headlamp-oidc` |
+| Local plain copy (optional, ignored by Git) | `02-bootstrap/07-secrets/topsecret/plain-<app>-secret.yaml` | `plain-headlamp-secret.yaml` |
+
+- The Consul value is the complete `Secret` manifest, not just the password.
+- An application has one secret: `topsecret/apps/<app>.yaml` maps to exactly one `sealed-<app>-secret.yaml`.
+- A local plain copy is not needed. The Consul key is the source of truth and is covered by `--backup-secrets`; `--add-secret` never creates one.
+- The Argo CD GitHub OAuth secret is a platform secret and follows a different path (see `../04-argocd/README.md`).
+
+## Adding a Secret Automatically
+
+Templates use two kinds of placeholders:
+
+| Placeholder | Meaning |
+|-------------|---------|
+| `<generate>` | A random value is acceptable (for example a database password). |
+| `<secret>`, `<client_id>`, ... | A real value that someone has to supply: taken from GitHub, or shared with another system such as an OIDC client secret that must match Dex. |
+
+For templates that contain only `<generate>`, use one command from `multipass/k3s`:
+
+```bash
+./main_bootstrap.sh --add-secret <app>
+```
+
+It reads `templates/template-<app>-secret.yaml`, replaces every `<generate>` with its own random value, stores the result in Consul as `topsecret/apps/<app>.yaml`, and runs this module to seal, commit and push it. The values are never printed.
+
+- If the key already exists in Consul it is kept, so re-running the command never changes a password (important for data that was initialised with it, such as PostgreSQL).
+- If the template still contains `<secret>` or any other placeholder, the command refuses and nothing is written. Fill those secrets manually, as described below.
+- The branch must be pushed and synchronized with its upstream, because the module commits and pushes.
+
+## Adding or Changing a Secret Manually
 
 `templates/` contains application secrets only. The Argo CD GitHub OAuth secret is a platform secret handled by `../04-argocd/` (template in `../04-argocd/templates/`).
 

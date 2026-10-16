@@ -70,7 +70,16 @@ show_usage() {
     echo "  - Never overwrites keys that already exist in Consul"
     echo ""
 
-    echo "$0 --preflight [--build|--rebuild|--destroy|--clean|--backup-secrets|--restore-secrets|--recover-secrets]"
+    echo "$0 --add-secret <app>"
+    echo "  Create and seal the secret of a new application (template-<app>-secret.yaml):"
+    echo "  - Every <generate> placeholder gets its own random value; the value is never printed"
+    echo "  - <secret> and other placeholders (<client_id>, ...) mean a value you must supply: the command refuses"
+    echo "  - Writes Consul topsecret/apps/<app>.yaml only if it does not exist yet (the password stays stable)"
+    echo "  - Runs 02-bootstrap/07-secrets: seals offline, then commits and pushes the SealedSecret"
+    echo "  - Needs a pushed, synchronized branch"
+    echo ""
+
+    echo "$0 --preflight [--build|--rebuild|--destroy|--clean|--backup-secrets|--restore-secrets|--recover-secrets|--add-secret]"
     echo "  Run prerequisite checks only; defaults to --build checks"
     echo ""
 
@@ -370,6 +379,87 @@ recover_secrets() {
     echo "All secrets are present in Consul. Create a backup now: $0 --backup-secrets"
 }
 
+check_git_synced() {
+    local upstream
+    local ahead
+    local behind
+
+    if ! upstream="$(git -C "$ROOT_DIR" rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null)"; then
+        echo "The current branch has no upstream. Push it first: git push -u origin <branch>" >&2
+        return 1
+    fi
+
+    git -C "$ROOT_DIR" fetch --quiet
+    ahead="$(git -C "$ROOT_DIR" rev-list --count "${upstream}..HEAD")"
+    behind="$(git -C "$ROOT_DIR" rev-list --count "HEAD..${upstream}")"
+
+    if [ "$ahead" -ne 0 ] || [ "$behind" -ne 0 ]; then
+        echo "Branch differs from $upstream (ahead $ahead, behind $behind); push or pull before sealing secrets." >&2
+        return 1
+    fi
+
+    echo "Git branch is synchronized with $upstream"
+}
+
+add_secret() {
+    local app="$1"
+    local templates_dir="$BOOTSTRAP_DIR/07-secrets/templates"
+    local template="$templates_dir/template-$app-secret.yaml"
+    local key="topsecret/apps/$app.yaml"
+    local placeholder_re='<[a-z_]+>'
+    local manifest
+    local value
+
+    echo "================================="
+    echo "ADD SECRET: $app"
+    echo "================================="
+
+    if ! [[ "$app" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]]; then
+        echo "Usage: $0 --add-secret <app>   (lowercase letters, digits and '-')" >&2
+        return 1
+    fi
+
+    if [ ! -f "$template" ]; then
+        echo "Template not found: $template" >&2
+        echo "Create it first. Available templates:" >&2
+        find "$templates_dir" -name 'template-*-secret.yaml' -printf '  %f\n' >&2
+        return 1
+    fi
+
+    if curl --fail --silent --max-time 5 "$SECRETS_KV_URL/$key?keys" >/dev/null; then
+        echo "Already in Consul, keeping the existing value: $key"
+    else
+        manifest="$(cat "$template")"
+
+        # Only <generate> may be filled with a random value. <secret> and any other
+        # placeholder stand for a real value (from GitHub, another system, ...) that
+        # only a person can supply.
+        while [[ "$manifest" == *"<generate>"* ]]; do
+            value="$(openssl rand -hex 24)"
+            manifest="${manifest/<generate>/$value}"
+        done
+        unset value
+
+        if [[ "$manifest" =~ $placeholder_re ]]; then
+            echo "$template needs a real value for ${BASH_REMATCH[0]} (and possibly other placeholders)." >&2
+            echo "Only <generate> is filled automatically. Fill the rest in a plain manifest and upload it:" >&2
+            echo "  curl -X PUT --data-binary @<file> $SECRETS_KV_URL/$key" >&2
+            return 1
+        fi
+
+        printf '%s\n' "$manifest" | \
+            curl --fail --silent --show-error --max-time 5 -X PUT --data-binary @- "$SECRETS_KV_URL/$key" >/dev/null
+        unset manifest
+        echo "Generated and stored in Consul: $key"
+    fi
+
+    terraform_apply "$BOOTSTRAP_DIR/07-secrets"
+
+    echo ""
+    echo "Done. The SealedSecret was committed and pushed: 03-apps/$app/sealed-$app-secret.yaml"
+    echo "Open a pull request, and create a backup of the secrets: $0 --backup-secrets"
+}
+
 delete_consul_terraform_states() {
     local consul_kv_url="http://127.0.0.1:8500/v1/kv"
 
@@ -474,6 +564,16 @@ check_prerequisites() {
         --backup-secrets|--restore-secrets)
             require_commands consul openssl curl
             check_consul
+            ;;
+        --add-secret)
+            require_commands git terraform kubeseal kubectl openssl curl find
+            check_minimum_version terraform "$MIN_TERRAFORM_VERSION"
+            check_consul
+            if ! curl --fail --silent --max-time 5 "$SECRETS_KV_URL/topsecret/sealed-secrets/tls.crt?keys" >/dev/null; then
+                echo "Sealed Secrets certificate not found in Consul; build the cluster first (--build)." >&2
+                return 1
+            fi
+            check_git_synced
             ;;
         --recover-secrets)
             require_commands kubectl openssl base64 curl
@@ -802,9 +902,14 @@ case "$1" in
         recover_secrets
         ;;
 
+    --add-secret)
+        check_prerequisites --add-secret
+        add_secret "${2:-}"
+        ;;
+
     --preflight)
         if [ "$#" -gt 2 ]; then
-            echo "Usage: $0 --preflight [--build|--rebuild|--destroy|--clean|--backup-secrets|--restore-secrets|--recover-secrets]" >&2
+            echo "Usage: $0 --preflight [--build|--rebuild|--destroy|--clean|--backup-secrets|--restore-secrets|--recover-secrets|--add-secret]" >&2
             exit 1
         fi
 
