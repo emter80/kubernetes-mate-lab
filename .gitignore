@@ -14,8 +14,6 @@ terraform.tfstate.*
 *.crt
 *.key
 *.pem
-# Public Sealed Secrets certificate (not secret): lets anyone encrypt secrets offline
-!multipass/k3s/02-bootstrap/03-sealed-secrets/sealed-secrets-cert.pem
 
 # MkDocs
 site/
