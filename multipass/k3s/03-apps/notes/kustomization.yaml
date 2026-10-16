@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: notes
+
+resources:
+  - backend.yaml
+  - frontend.yaml
+  - ingressroute.yaml
+  - certificate.yaml
+
+# Application code is shipped as ConfigMaps. The generated name carries a content
+# hash, so editing src/* in Git rolls the Deployments automatically.
+configMapGenerator:
+  - name: notes-backend-code
+    files:
+      - src/server.py
+  - name: notes-frontend-html
+    files:
+      - src/index.html

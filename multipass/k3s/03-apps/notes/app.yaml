@@ -1,0 +1,5 @@
+name: notes
+namespace: notes
+repoURL: https://github.com/emter80/kubernetes-mate-lab.git
+targetRevision: main
+kustomizePath: multipass/k3s/03-apps/notes

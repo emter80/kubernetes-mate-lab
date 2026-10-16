@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: notes-backend
+  namespace: notes
+
+spec:
+  # Notes are held in memory, so a single replica keeps the data consistent.
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: notes-backend
+
+  template:
+    metadata:
+      labels:
+        app: notes-backend
+
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: backend
+          image: python:3.12-alpine
+          command: ["python", "-u", "/app/server.py"]
+
+          ports:
+            - containerPort: 8000
+
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+
+          volumeMounts:
+            - name: code
+              mountPath: /app
+              readOnly: true
+
+      volumes:
+        - name: code
+          configMap:
+            name: notes-backend-code
+---
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: notes-backend
+  namespace: notes
+
+spec:
+  selector:
+    app: notes-backend
+
+  ports:
+    - port: 8000
+      targetPort: 8000
