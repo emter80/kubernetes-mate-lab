@@ -1,0 +1,26 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+
+metadata:
+  name: notes
+  namespace: notes
+
+spec:
+  entryPoints:
+    - websecure
+
+  routes:
+    - match: Host(`notes.multipass.k3s`) && PathPrefix(`/api`)
+      kind: Rule
+      services:
+        - name: notes-backend
+          port: 8000
+
+    - match: Host(`notes.multipass.k3s`)
+      kind: Rule
+      services:
+        - name: notes-frontend
+          port: 80
+
+  tls:
+    secretName: notes-tls
