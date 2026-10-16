@@ -45,7 +45,22 @@ topsecret/
 └── ...
 ```
 
-## Adding or Changing a Secret
+## Adding a Secret Automatically
+
+For secrets that only need random values (for example a database password), use one command from `multipass/k3s`:
+
+```bash
+./main_bootstrap.sh --add-secret <app>
+```
+
+It reads `templates/template-<app>-secret.yaml`, replaces every `<secret>` placeholder with its own random value, stores the result in Consul as `topsecret/apps/<app>.yaml`, and runs this module to seal, commit and push it. The values are never printed.
+
+- If the key already exists in Consul it is kept, so re-running the command never changes a password (important for data that was initialised with it, such as PostgreSQL).
+- Templates with other placeholders (such as `<client_id>`) need real values and must be uploaded manually, as described below.
+- The branch must be pushed and synchronized with its upstream, because the module commits and pushes.
+- Do not use it for a value that must match another system (for example an OIDC client secret shared with Dex).
+
+## Adding or Changing a Secret Manually
 
 `templates/` contains application secrets only. The Argo CD GitHub OAuth secret is a platform secret handled by `../04-argocd/` (template in `../04-argocd/templates/`).
 
